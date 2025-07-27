@@ -21,12 +21,16 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Install dependencies
+      - name: Install uv
+        uses: astral-sh/setup-uv@v3
+
+      - name: Create virtual environment and install dependencies
         run: |
-          pip install -r requirements.txt -r requirements.dev.txt
+          uv venv
+          uv pip install -r requirements.txt -r requirements.dev.txt
 
       - name: Run Mypy
-        run: mypy
+        run: uv run mypy
 
       - name: Run Pytest
-        run: python -m pytest
+        run: uv run python -m pytest

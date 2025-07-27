@@ -1,7 +1,22 @@
-[metadata]
-name = "RecapKt"
-author = "ArtemKushnir"
-url = "https://github.com/explyt/RecapKt.git"
+url = "https://github.com/emnigma/RecapKt.git"
+[project]
+name = "recapkt"
+version = "0.1.0"
+description = "A dialogue system for text summarization"
+authors = [{name = "ArtemKushnir"}]
+readme = "README.md"
+requires-python = ">=3.8"
+dependencies = []
+
+[project.scripts]
+recapkt = "src.main:main"
+
+[project.urls]
+Homepage = "https://github.com/emnigma/RecapKt.git"
+Repository = "https://github.com/emnigma/RecapKt.git"
+
+[tool.setuptools.packages.find]
+where = ["."]
 
 [tool.ruff.lint]
 select = ["E", "W", "F", "I", "C", "B", "Q", "UP"]
