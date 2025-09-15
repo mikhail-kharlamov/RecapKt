@@ -1,8 +1,14 @@
+from dataclasses import dataclass
 from unittest.mock import MagicMock
 
 import pytest
 
-from src.recsum.summarizer import RecursiveSummarizer
+from src.summarize_algorithms.recsum.summarizer import RecursiveSummarizer
+
+
+@dataclass
+class FragmentMemory:
+    summary_messages: list[str]
 
 
 @pytest.fixture
@@ -17,23 +23,22 @@ def mock_prompt_template():
 
 @pytest.fixture
 def summarizer(mock_llm, mock_prompt_template):
-    return RecursiveSummarizer(llm=mock_llm, prompt_template=mock_prompt_template)
+    return RecursiveSummarizer(llm=mock_llm, prompt=mock_prompt_template)
 
 
 def test_initialization(summarizer, mock_llm, mock_prompt_template):
     assert summarizer.llm is mock_llm
-    assert summarizer.prompt_template is mock_prompt_template
     assert hasattr(summarizer, "chain")
 
 
 def test_summarize_success(summarizer):
     mock_chain = MagicMock()
-    mock_chain.invoke.return_value = "Test summary"
+    mock_chain.invoke.return_value = FragmentMemory(["Test summary"])
     summarizer.chain = mock_chain
 
     result = summarizer.summarize("Previous memory", "Dialogue context")
 
-    assert result == "Test summary"
+    assert result == ["Test summary"]
     mock_chain.invoke.assert_called_once_with(
         {"previous_memory": "Previous memory", "dialogue_context": "Dialogue context"}
     )
@@ -60,7 +65,7 @@ def test_summarize_exception(summarizer):
 )
 def test_argument_passing(summarizer, memory, context):
     mock_chain = MagicMock()
-    mock_chain.invoke.return_value = "Summary"
+    mock_chain.invoke.return_value = FragmentMemory(["Summary"])
     summarizer.chain = mock_chain
 
     summarizer.summarize(memory, context)

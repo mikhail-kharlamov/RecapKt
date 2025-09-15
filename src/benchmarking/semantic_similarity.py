@@ -1,4 +1,5 @@
 from dataclasses import dataclass
+from typing import Any
 
 import numpy as np
 import tiktoken
@@ -19,10 +20,12 @@ class SemanticSimilarity:
         self,
         model: str = "text-embedding-3-small",
         batch_size: int = 100,
+        use_tokenizer: bool = True,
     ) -> None:
         self.embeddings = OpenAIEmbeddings(model=model, chunk_size=batch_size)
         self.batch_size = batch_size
         self.tokenizer = tiktoken.get_encoding("cl100k_base")
+        self.use_tokenizer = use_tokenizer
 
     def _tokenize(self, text: str) -> np.ndarray:
         if not text or not text.strip():
@@ -49,13 +52,16 @@ class SemanticSimilarity:
         return embeddings_array[inverse_indices]
 
     def compute_similarity(
-        self, candidate: str, reference: str
+        self, candidate: Any, reference: Any
     ) -> SemanticSimilarityResult:
         if not candidate or not reference:
             return SemanticSimilarityResult(0.0, 0.0, 0.0)
-
-        cand_tokens = self._tokenize(candidate)
-        ref_tokens = self._tokenize(reference)
+        if self.use_tokenizer:
+            cand_tokens = self._tokenize(candidate)
+            ref_tokens = self._tokenize(reference)
+        else:
+            cand_tokens = np.array([candidate])
+            ref_tokens = np.array([reference])
 
         if len(cand_tokens) == 0 or len(ref_tokens) == 0:
             return SemanticSimilarityResult(0.0, 0.0, 0.0)

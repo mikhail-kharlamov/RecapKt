@@ -1,10 +1,23 @@
 import random
 
+from dataclasses import dataclass, field
 from typing import Any
 
 from datasets import load_dataset
 
-from src.recsum.models import Message, Session
+from src.summarize_algorithms.core.models import BaseBlock, Session
+
+
+@dataclass
+class SessionMemory:
+    role1: str = "user"
+    role2: str = "assistant"
+    memory1: list[str] = field(default_factory=list)
+    memory2: list[str] = field(default_factory=list)
+
+    @property
+    def memory(self) -> list[str]:
+        return self.memory1 + self.memory2
 
 
 class MCPDataset:
@@ -17,7 +30,7 @@ class MCPDataset:
         self.session_length = min(session_length, 3)
         self.shuffle = shuffle
         self._sessions: list[list[Session]] = []
-        self._memory: list[list[str]] = []
+        self._memory: list[list[SessionMemory]] = []
         self._is_initialized = False
 
     def _initialize_data(self) -> None:
@@ -26,7 +39,7 @@ class MCPDataset:
 
         dataset = load_dataset(self.data_name, split="test")
         zero_sessions_idx = [
-            i - 2
+            i - self.session_length
             for i, ex in enumerate(dataset)
             if ex["session_id"] == self.session_length
         ]
@@ -36,7 +49,7 @@ class MCPDataset:
             selected_indices = zero_sessions_idx[: self.n_samples]
 
         for idx in selected_indices:
-            self._process_dialogue(dataset[idx : idx + self.session_length])
+            self._process_dialogue(dataset[idx : idx + self.session_length + 1])
 
         self._is_initialized = True
 
@@ -47,18 +60,22 @@ class MCPDataset:
         sessions = self._extract_sessions(dialogue_data)
         self._sessions.append(sessions)
 
-    def _extract_memory(self, dialogue_data: dict[str, list[Any]]) -> list[str]:
+    def _extract_memory(
+        self, dialogue_data: dict[str, list[Any]]
+    ) -> list[SessionMemory]:
         sessions_memory = []
 
         persona1_data = dialogue_data.get("persona1", [])
         persona2_data = dialogue_data.get("persona2", [])
 
-        for i in range(self.session_length):
-            memory1 = "".join(persona1_data[i]) if i < len(persona1_data) else ""
-            memory2 = "".join(persona2_data[i]) if i < len(persona2_data) else ""
+        for i in range(self.session_length + 1):
+            memory1 = persona1_data[i] if i < len(persona1_data) else []
+            memory2 = persona2_data[i] if i < len(persona2_data) else []
 
-            formatted_memory = f"persona1: {memory1}\npersona2: {memory2}"
-            sessions_memory.append(formatted_memory)
+            session_memory = SessionMemory(
+                role1="user", role2="assistant", memory1=memory1, memory2=memory2
+            )
+            sessions_memory.append(session_memory)
 
         return sessions_memory
 
@@ -71,7 +88,7 @@ class MCPDataset:
 
         for dialogue_msgs, speakers in zip(dialogue_sessions, speaker_sessions):
             messages = [
-                Message(role=speaker, message=message)
+                BaseBlock(role=speaker, content=message)
                 for message, speaker in zip(dialogue_msgs, speakers)
             ]
             sessions.append(Session(messages))
@@ -84,7 +101,7 @@ class MCPDataset:
         return self._sessions
 
     @property
-    def memory(self) -> list[list[str]]:
+    def memory(self) -> list[list[SessionMemory]]:
         self._initialize_data()
         return self._memory
 

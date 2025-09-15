@@ -5,7 +5,7 @@ import pytest
 from langchain_core.language_models import BaseChatModel
 from langchain_core.prompts import PromptTemplate
 
-from src.recsum.response_generator import ResponseGenerator
+from src.summarize_algorithms.core.response_generator import ResponseGenerator
 
 
 @pytest.fixture
@@ -35,38 +35,49 @@ def test_generate_response_success(response_generator):
     response_generator.chain = mock_chain
 
     result = response_generator.generate_response(
-        memory="Memory content",
-        dialogue_context="Dialogue history",
+        dialogue_memory="Memory content",
+        code_memory="Code memory",
+        tool_memory="Tool memory",
         query="User question",
     )
 
     assert result == "Test response"
     mock_chain.invoke.assert_called_once_with(
         {
-            "latest_memory": "Memory content",
-            "current_dialogue_context": "Dialogue history",
+            "dialogue_memory": "Memory content",
+            "code_memory": "Code memory",
+            "tool_memory": "Tool memory",
             "query": "User question",
         }
     )
 
 
 @pytest.mark.parametrize(
-    "memory, context, query",
+    "dialogue_memory,code_memory,tool_memory,query",
     [
-        ("", "", ""),
-        ("Short", "Long context with details", "Simple query"),
-        ("Very long memory " * 20, "Short context", "Complex?" * 10),
-        ("Memory", "", "Query"),
+        ("", "", "", ""),
+        ("Short", "Short Code", "Short tool", "Simple query"),
+        ("Very long memory " * 20, "Short Code", "Medium Tool" * 5, "Complex?" * 10),
+        ("Memory", "", "", "Query"),
     ],
 )
-def test_argument_combinations(response_generator, memory, context, query):
+def test_argument_combinations(
+    dialogue_memory, code_memory, tool_memory, query, response_generator
+):
     mock_chain = MagicMock()
     mock_chain.invoke.return_value = "Response"
     response_generator.chain = mock_chain
 
-    response_generator.generate_response(memory, context, query)
+    response_generator.generate_response(
+        dialogue_memory, code_memory, tool_memory, query
+    )
     mock_chain.invoke.assert_called_once_with(
-        {"latest_memory": memory, "current_dialogue_context": context, "query": query}
+        {
+            "dialogue_memory": dialogue_memory,
+            "code_memory": code_memory,
+            "tool_memory": tool_memory,
+            "query": query,
+        }
     )
 
 
@@ -76,7 +87,7 @@ def test_generate_response_exception(response_generator):
     response_generator.chain = mock_chain
 
     with pytest.raises(ConnectionError) as exc_info:
-        response_generator.generate_response("mem", "ctx", "q")
+        response_generator.generate_response("dmem", "cmem", "tmem", "q")
 
     assert "API request failed: Network error" in str(exc_info.value)
     assert isinstance(exc_info.value.__cause__, Exception)

@@ -4,4 +4,7 @@
 __pycache__/
 .ipynb_checkpoints/
 .hypothesis/
-.env/
+*.egg-info/
+build/
+.venv/
+uv.lock
