@@ -1,7 +1,9 @@
+import os
 from abc import ABC, abstractmethod
 from enum import Enum
 from typing import Any, Generic, Optional, TypeVar
 
+from dotenv import load_dotenv
 from langchain_core.language_models import BaseChatModel
 from langchain_core.prompts import PromptTemplate
 from langchain_core.runnables import RunnableSerializable
@@ -79,7 +81,11 @@ PairwiseResultType = TypeVar("PairwiseResultType", bound=BaseModel)
 
 class BaseLLMEvaluation(Generic[SingleResultType, PairwiseResultType], ABC):
     def __init__(self, llm: Optional[BaseChatModel] = None) -> None:
-        self.llm = llm or ChatOpenAI(model=OpenAIModels.GPT_4_1.value, temperature=0.0)
+        load_dotenv()
+
+        self.llm = llm or ChatOpenAI(
+            model=OpenAIModels.GPT_5_MINI.value,
+            api_key=os.getenv("OPENAI_API_KEY"))
         self.single_eval_prompt = self._get_single_eval_prompt()
         self.pairwise_eval_prompt = self._get_pairwise_eval_prompt()
         self.single_eval_chain = self._build_single_eval_chain()

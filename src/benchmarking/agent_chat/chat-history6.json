@@ -1,0 +1,542 @@
+[
+  {
+    "type": "USER",
+    "content": "<CONTEXT>\n<CLASS>\n   @JsonInclude(Include.NON_NULL)\npublic record ChatCompletionRequest(@JsonProperty(\"contents\") List<ChatCompletionMessage> contents,\n\t\t@JsonProperty(\"systemInstruction\") ChatCompletionMessage systemInstruction,\n\t\t@JsonProperty(\"generationConfig\") GenerationConfig generationConfig,\n\t\t@Nullable @JsonProperty(\"tools\") List<Tool> tools\n) {\n\tpublic ChatCompletionRequest(Prompt prompt, GoogleGeminiChatOptions options) {\n\t\tthis(prompt.getInstructions()\n\t\t\t.stream()\n\t\t\t.filter(instruction -> instruction.getMessageType() != MessageType.SYSTEM)\n\t\t\t.map(ChatCompletionMessage::new)\n\t\t\t.toList(), ChatCompletionMessage.getSystemInstruction(prompt), GenerationConfig.of(options),null);\n\t\tAssert.isTrue(prompt.getInstructions()\n\t\t\t.stream()\n\t\t\t.filter(instruction -> instruction.getMessageType() == MessageType.SYSTEM)\n\t\t\t.count() <= 1, \"Only one system message is allowed in the prompt.\");\n\t}\n}\n</CLASS>\n</CONTEXT>\n\n\ni got this error:\n```\norg.springframework.ai.retry.NonTransientAiException: 400 - {\n  \"error\": {\n    \"code\": 400,\n    \"message\": \"Invalid value at 'tools[0].function_declarations[0].parameters' (type.googleapis.com/google.ai.generativelanguage.v1beta.Schema), \\\"{\\n  \\\"$schema\\\" : \\\"https://json-schema.org/draft/2020-12/schema\\\",\\n  \\\"type\\\" : \\\"object\\\",\\n  \\\"properties\\\" : {\\n    \\\"lat\\\" : {\\n      \\\"type\\\" : \\\"number\\\",\\n      \\\"format\\\" : \\\"double\\\",\\n      \\\"description\\\" : \\\"The city latitude\\\"\\n    },\\n    \\\"location\\\" : {\\n      \\\"type\\\" : \\\"string\\\",\\n      \\\"description\\\" : \\\"The city and state e.g. San Francisco, CA\\\"\\n    },\\n    \\\"lon\\\" : {\\n      \\\"type\\\" : \\\"number\\\",\\n      \\\"format\\\" : \\\"double\\\",\\n      \\\"description\\\" : \\\"The city longitude\\\"\\n    },\\n    \\\"unit\\\" : {\\n      \\\"type\\\" : \\\"string\\\",\\n      \\\"enum\\\" : [ \\\"C\\\", \\\"F\\\" ],\\n      \\\"description\\\" : \\\"Temperature unit\\\"\\n    }\\n  },\\n  \\\"required\\\" : [ \\\"lat\\\", \\\"location\\\", \\\"lon\\\", \\\"unit\\\" ],\\n  \\\"description\\\" : \\\"Weather API request\\\",\\n  \\\"additionalProperties\\\" : false\\n}\\\"\",\n    \"status\": \"INVALID_ARGUMENT\",\n    \"details\": [\n      {\n        \"@type\": \"type.googleapis.com/google.rpc.BadRequest\",\n        \"fieldViolations\": [\n          {\n            \"field\": \"tools[0].function_declarations[0].parameters\",\n            \"description\": \"Invalid value at 'tools[0].function_declarations[0].parameters' (type.googleapis.com/google.ai.generativelanguage.v1beta.Schema), \\\"{\\n  \\\"$schema\\\" : \\\"https://json-schema.org/draft/2020-12/schema\\\",\\n  \\\"type\\\" : \\\"object\\\",\\n  \\\"properties\\\" : {\\n    \\\"lat\\\" : {\\n      \\\"type\\\" : \\\"number\\\",\\n      \\\"format\\\" : \\\"double\\\",\\n      \\\"description\\\" : \\\"The city latitude\\\"\\n    },\\n    \\\"location\\\" : {\\n      \\\"type\\\" : \\\"string\\\",\\n      \\\"description\\\" : \\\"The city and state e.g. San Francisco, CA\\\"\\n    },\\n    \\\"lon\\\" : {\\n      \\\"type\\\" : \\\"number\\\",\\n      \\\"format\\\" : \\\"double\\\",\\n      \\\"description\\\" : \\\"The city longitude\\\"\\n    },\\n    \\\"unit\\\" : {\\n      \\\"type\\\" : \\\"string\\\",\\n      \\\"enum\\\" : [ \\\"C\\\", \\\"F\\\" ],\\n      \\\"description\\\" : \\\"Temperature unit\\\"\\n    }\\n  },\\n  \\\"required\\\" : [ \\\"lat\\\", \\\"location\\\", \\\"lon\\\", \\\"unit\\\" ],\\n  \\\"description\\\" : \\\"Weather API request\\\",\\n  \\\"additionalProperties\\\" : false\\n}\\\"\"\n          }\n        ]\n      }\n    ]\n  }\n}\n\n```\n\ni suspect, #class:ChatCompletionRequest is not quite correct. Fix it"
+  },
+  {
+    "type": "ASSISTANT",
+    "content": "The error indicates that the Gemini API expects the `parameters` field in `function_declarations` (inside `tools`) to be a parsed JSON object (not a stringified JSON schema). Most likely, your code is serializing the schema as a string, but the API expects a structured object.\n\nTo fix this, you should ensure that the `parameters` field in your `Tool`/`FunctionDeclaration` model is a `Map<String, Object>` (or similar), not a `String`. This way, Jackson will serialize it as a JSON object, not a string.\n\nI'll review the `ChatCompletionRequest` and related classes to ensure the `tools` field and its nested `parameters` are correctly typed and serialized. First, I need to see how `Tool` and `FunctionDeclaration` are defined and used.\n\nI'll search for their definitions and usages.",
+    "tool_calls": [
+      {
+        "id": "797c916f-64c1-46c4-89e1-7c0dcdbc96fe",
+        "name": "search_for_text",
+        "arguments": "{\"target_path\": \".\", \"text_snippet\": \"class Tool\", \"is_case_sensitive\": false}"
+      },
+      {
+        "id": "d7d48d72-9e1a-4cf1-848f-ee9e02c9935d",
+        "name": "search_for_text",
+        "arguments": "{\"target_path\": \".\", \"text_snippet\": \"class FunctionDeclaration\", \"is_case_sensitive\": false}"
+      },
+      {
+        "id": "e94a2994-3664-4d89-91ed-02924a2ffe34",
+        "name": "search_for_text",
+        "arguments": "{\"target_path\": \".\", \"text_snippet\": \"record Tool\", \"is_case_sensitive\": false}"
+      },
+      {
+        "id": "1b685eae-6a53-4440-9831-959af997073e",
+        "name": "search_for_text",
+        "arguments": "{\"target_path\": \".\", \"text_snippet\": \"record FunctionDeclaration\", \"is_case_sensitive\": false}"
+      }
+    ]
+  },
+  {
+    "type": "TOOL",
+    "content": "",
+    "tool_responses": [
+      {
+        "id": "797c916f-64c1-46c4-89e1-7c0dcdbc96fe",
+        "name": "search_for_text",
+        "responseData": "{\"result\":\"success\",\"content\":[{path=\"mcp/common/src/test/java/org/springframework/ai/mcp/ToolUtilsTests.java\", line=48, column=1, content=\"class ToolUtilsTests {\"}, {path=\"models/spring-ai-openai/src/main/java/org/springframework/ai/openai/api/OpenAiApi.java\", line=1159, column=17, content=\"\\t\\tpublic static class ToolChoiceBuilder {\"}, {path=\"models/spring-ai-google-gemini/src/main/java/org/springframework/ai/google.gemini/api/GoogleGeminiApi.java\", line=271, column=16, content=\"\\tpublic static class Tool {\"}, {path=\"models/spring-ai-anthropic/src/main/java/org/springframework/ai/anthropic/api/AnthropicApi.java\", line=1034, column=16, content=\"\\tpublic static class ToolUseAggregationEvent implements StreamEvent {\"}, {path=\"models/spring-ai-minimax/src/main/java/org/springframework/ai/minimax/api/MiniMaxApi.java\", line=615, column=17, content=\"\\t\\tpublic static class ToolChoiceBuilder {\"}, {path=\"models/spring-ai-zhipuai/src/main/java/org/springframework/ai/zhipuai/api/ZhiPuAiApi.java\", line=585, column=17, content=\"\\t\\tpublic static class ToolChoiceBuilder {\"}, {path=\"models/spring-ai-bedrock-converse/src/main/java/org/springframework/ai/bedrock/converse/api/ConverseApiUtils.java\", line=405, column=16, content=\"\\tpublic static class ToolUseAggregationEvent implements ConverseStreamOutput {\"}, {path=\"spring-ai-integration-tests/src/test/java/org/springframework/ai/integration/tests/tool/MethodToolCallbackTests.java\", line=133, column=9, content=\"\\tstatic class Tools {\"}, {path=\"spring-ai-integration-tests/src/test/java/org/springframework/ai/integration/tests/tool/ToolCallingManagerTests.java\", line=54, column=8, content=\"public class ToolCallingManagerTests {\"}, {path=\"spring-ai-integration-tests/src/test/java/org/springframework/ai/integration/tests/tool/ToolCallingManagerTests.java\", line=135, column=9, content=\"\\tstatic class Tools {\"}, {path=\"spring-ai-integration-tests/src/test/java/org/springframework/ai/integration/tests/tool/FunctionToolCallbackTests.java\", line=188, column=9, content=\"\\tstatic class Tools {\"}, {path=\"spring-ai-model/src/main/java/org/springframework/ai/aot/ToolRuntimeHints.java\", line=31, column=8, content=\"public class ToolRuntimeHints implements RuntimeHintsRegistrar {\"}, {path=\"spring-ai-model/src/main/java/org/springframework/ai/support/ToolCallbacks.java\", line=28, column=14, content=\"public final class ToolCallbacks {\"}, {path=\"spring-ai-model/src/main/java/org/springframework/ai/chat/model/ToolContext.java\", line=46, column=14, content=\"public final class ToolContext {\"}, {path=\"spring-ai-model/src/main/java/org/springframework/ai/chat/messages/ToolResponseMessage.java\", line=30, column=8, content=\"public class ToolResponseMessage extends AbstractMessage {\"}, {path=\"spring-ai-model/src/main/java/org/springframework/ai/aot/ToolBeanRegistrationAotProcessor.java\", line=40, column=1, content=\"class ToolBeanRegistrationAotProcessor implements BeanRegistrationAotProcessor {\"}, {path=\"spring-ai-model/src/main/java/org/springframework/ai/tool/support/ToolUtils.java\", line=38, column=14, content=\"public final class ToolUtils {\"}, {path=\"spring-ai-model/src/test/java/org/springframework/ai/aot/ToolBeanRegistrationAotProcessorTests.java\", line=40, column=1, content=\"class ToolBeanRegistrationAotProcessorTests {\"}, {path=\"spring-ai-model/src/test/java/org/springframework/ai/aot/ToolRuntimeHintsTests.java\", line=30, column=1, content=\"class ToolRuntimeHintsTests {\"}, {path=\"spring-ai-model/src/main/java/org/springframework/ai/tool/support/ToolDefinitions.java\", line=38, column=14, content=\"public final class ToolDefinitions {\"}, {path=\"spring-ai-model/src/main/java/org/springframework/ai/tool/observation/ToolCallingObservationContext.java\", line=35, column=14, content=\"public final class ToolCallingObservationContext extends Observation.Context {\"}, {path=\"spring-ai-model/src/main/java/org/springframework/ai/tool/execution/ToolExecutionException.java\", line=27, column=8, content=\"public class ToolExecutionException extends RuntimeException {\"}, {path=\"spring-ai-model/src/main/java/org/springframework/ai/tool/observation/ToolCallingContentObservationFilter.java\", line=29, column=8, content=\"public class ToolCallingContentObservationFilter implements ObservationFilter {\"}, {path=\"spring-ai-model/src/test/java/org/springframework/ai/tool/observation/ToolCallingObservationContextTests.java\", line=31, column=1, content=\"class ToolCallingObservationContextTests {\"}, {path=\"spring-ai-model/src/test/java/org/springframework/ai/tool/observation/ToolCallingContentObservationFilterTests.java\", line=32, column=1, content=\"class ToolCallingContentObservationFilterTests {\"}, {path=\"spring-ai-model/src/test/java/org/springframework/ai/model/tool/ToolExecutionResultTests.java\", line=34, column=1, content=\"class ToolExecutionResultTests {\"}, {path=\"spring-ai-model/src/test/java/org/springframework/ai/model/tool/ToolExecutionEligibilityPredicateTests.java\", line=36, column=1, content=\"class ToolExecutionEligibilityPredicateTests {\"}, {path=\"spring-ai-model/src/test/java/org/springframework/ai/model/tool/ToolCallingChatOptionsTests.java\", line=37, column=1, content=\"class ToolCallingChatOptionsTests {\"}, {path=\"auto-configurations/models/tool/spring-ai-autoconfigure-model-tool/src/main/java/org/springframework/ai/model/tool/autoconfigure/ToolCallingAutoConfiguration.java\", line=57, column=8, content=\"public class ToolCallingAutoConfiguration {\"}, {path=\"auto-configurations/models/tool/spring-ai-autoconfigure-model-tool/src/test/java/org/springframework/ai/model/tool/autoconfigure/ToolCallingAutoConfigurationTests.java\", line=55, column=1, content=\"class ToolCallingAutoConfigurationTests {\"}, {path=\"auto-configurations/models/tool/spring-ai-autoconfigure-model-tool/src/main/java/org/springframework/ai/model/tool/autoconfigure/ToolCallingProperties.java\", line=28, column=8, content=\"public class ToolCallingProperties {\"}, {path=\"auto-configurations/models/spring-ai-autoconfigure-model-ollama/src/test/kotlin/org/springframework/ai/model/ollama/autoconfigure/tool/ToolCallbackKotlinIT.kt\", line=36, column=1, content=\"class ToolCallbackKotlinIT : BaseOllamaIT() {\"}, {path=\"auto-configurations/mcp/spring-ai-autoconfigure-mcp-client/src/main/java/org/springframework/ai/mcp/client/autoconfigure/McpToolCallbackAutoConfiguration.java\", line=80, column=10, content=\"\\t\\tstatic class ToolCallbackProviderEnabled {\"}, {path=\"auto-configurations/mcp/spring-ai-autoconfigure-mcp-client/src/main/java/org/springframework/ai/mcp/client/autoconfigure/properties/McpClientCommonProperties.java\", line=185, column=16, content=\"\\tpublic static class Toolcallback {\"}, {path=\"models/spring-ai-deepseek/src/main/java/org/springframework/ai/deepseek/api/DeepSeekApi.java\", line=566, column=17, content=\"\\t\\tpublic static class ToolChoiceBuilder {\"}]}"
+      },
+      {
+        "id": "d7d48d72-9e1a-4cf1-848f-ee9e02c9935d",
+        "name": "search_for_text",
+        "responseData": "{\"result\":\"success\",\"content\":[{path=\"models/spring-ai-google-gemini/src/main/java/org/springframework/ai/google.gemini/api/GoogleGeminiApi.java\", line=296, column=16, content=\"\\tpublic static class FunctionDeclaration {\"}]}"
+      },
+      {
+        "id": "e94a2994-3664-4d89-91ed-02924a2ffe34",
+        "name": "search_for_text",
+        "responseData": "{\"result\":\"success\",\"content\":[{path=\"models/spring-ai-ollama/src/main/java/org/springframework/ai/ollama/api/OllamaApi.java\", line=311, column=10, content=\"\\t\\tpublic record ToolCall(\"}, {path=\"models/spring-ai-openai/src/main/java/org/springframework/ai/openai/api/OpenAiApi.java\", line=1504, column=10, content=\"\\t\\tpublic record ToolCall(// @formatter:off\"}, {path=\"models/spring-ai-ollama/src/main/java/org/springframework/ai/ollama/api/OllamaApi.java\", line=322, column=10, content=\"\\t\\tpublic record ToolCallFunction(\"}, {path=\"models/spring-ai-ollama/src/main/java/org/springframework/ai/ollama/api/OllamaApi.java\", line=399, column=10, content=\"\\t\\tpublic record Tool(\"}, {path=\"models/spring-ai-anthropic/src/main/java/org/springframework/ai/anthropic/api/AnthropicApi.java\", line=971, column=9, content=\"\\tpublic record Tool(\"}, {path=\"models/spring-ai-mistral-ai/src/main/java/org/springframework/ai/mistralai/api/MistralAiApi.java\", line=892, column=10, content=\"\\t\\tpublic record ToolCall(@JsonProperty(\\\\\\\"id\\\\\\\") String id, @JsonProperty(\\\\\\\"type\\\\\\\") String type,\"}, {path=\"models/spring-ai-minimax/src/main/java/org/springframework/ai/minimax/api/MiniMaxApi.java\", line=774, column=10, content=\"\\t\\tpublic record ToolCall(\"}, {path=\"models/spring-ai-zhipuai/src/main/java/org/springframework/ai/zhipuai/api/ZhiPuAiApi.java\", line=746, column=10, content=\"\\t\\tpublic record ToolCall(\"}, {path=\"models/spring-ai-anthropic/src/test/java/org/springframework/ai/anthropic/api/tool/XmlHelper.java\", line=120, column=9, content=\"\\tpublic record Tools(\"}, {path=\"models/spring-ai-anthropic/src/test/java/org/springframework/ai/anthropic/api/tool/XmlHelper.java\", line=123, column=10, content=\"\\t\\tpublic record ToolDescription(\"}, {path=\"models/spring-ai-bedrock-converse/src/main/java/org/springframework/ai/bedrock/converse/api/ConverseApiUtils.java\", line=478, column=10, content=\"\\t\\tpublic record ToolUseEntry(Integer index, String id, String name, String input, DefaultUsage usage) {\"}, {path=\"spring-ai-model/src/main/java/org/springframework/ai/chat/messages/AssistantMessage.java\", line=130, column=9, content=\"\\tpublic record ToolCall(String id, String type, String name, String arguments) {\"}, {path=\"spring-ai-model/src/main/java/org/springframework/ai/chat/messages/ToolResponseMessage.java\", line=72, column=9, content=\"\\tpublic record ToolResponse(String id, String name, String responseData) {\"}, {path=\"models/spring-ai-deepseek/src/main/java/org/springframework/ai/deepseek/api/DeepSeekApi.java\", line=691, column=10, content=\"\\t\\tpublic record ToolCall(// @formatter:off\"}]}"
+            },
+            {
+                "id": "1b685eae-6a53-4440-9831-959af997073e",
+                "name": "search_for_text",
+                "responseData": "{\"result\":\"success\",\"content\":[]}"
+            }
+        ]
+    },
+    {
+        "type": "ASSISTANT",
+        "content": "",
+        "tool_calls": [
+            {
+                "id": "fc224c0b-ff6e-4ee5-8335-9a05811ffb58",
+                "name": "read_file",
+                "arguments": "{\"target_file\": \"models/spring-ai-google-gemini/src/main/java/org/springframework/ai/google.gemini/api/GoogleGeminiApi.java\", \"start_line\": 271, \"end_line\": 320}"
+            },
+            {
+                "id": "0feed7de-d006-42ad-bf7a-788e9912bf61",
+                "name": "read_file",
+                "arguments": "{\"target_file\": \"models/spring-ai-google-gemini/src/main/java/org/springframework/ai/google.gemini/api/GoogleGeminiApi.java\", \"start_line\": 296, \"end_line\": 320}"
+            }
+        ]
+    },
+    {
+        "type": "TOOL",
+        "content": "",
+        "tool_responses": [
+            {
+                "id": "fc224c0b-ff6e-4ee5-8335-9a05811ffb58",
+                "name": "read_file",
+                "responseData": "{\"result\":\"success\",\"content\":{\"file_line_count\":434,\"text\":\"\\tpublic static class Tool {\\n\\t\\t@JsonProperty(\\\"functionDeclarations\\\")\\n\\t\\tprivate List<FunctionDeclaration> functionDeclarations;\\n\\n\\t\\tpublic Tool() {\\n\\t\\t}\\n\\n\\t\\tpublic Tool(List<FunctionDeclaration> functionDeclarations) {\\n\\t\\t\\tthis.functionDeclarations = functionDeclarations;\\n\\t\\t}\\n\\n\\t\\tpublic List<FunctionDeclaration> getFunctionDeclarations() {\\n\\t\\t\\treturn functionDeclarations;\\n\\t\\t}\\n\\n\\t\\tpublic void setFunctionDeclarations(List<FunctionDeclaration> functionDeclarations) {\\n\\t\\t\\tthis.functionDeclarations = functionDeclarations;\\n\\t\\t}\\n\\t}\\n\\n\\t/**\\n\\t * Represents a function declaration for Gemini function calling.\\n\\t * Follows OpenAPI schema subset as required by Gemini.\\n\\t */\\n\\t@JsonInclude(Include.NON_NULL)\\n\\tpublic static class FunctionDeclaration {\\n\\t\\t@JsonProperty(\\\"name\\\")\\n\\t\\tprivate String name;\\n\\n\\t\\t@JsonProperty(\\\"description\\\")\\n\\t\\tprivate String description;\\n\\n\\t\\t@JsonProperty(\\\"parameters\\\")\\n\\t\\tprivate Object parameters;\\n\\n\\t\\tpublic FunctionDeclaration() {\\n\\t\\t}\\n\\n\\t\\tpublic FunctionDeclaration(String name, String description, Object parameters) {\\n\\t\\t\\tthis.name = name;\\n\\t\\t\\tthis.description = description;\\n\\t\\t\\tthis.parameters = parameters;\\n\\t\\t}\\n\\n\\t\\tpublic String getName() {\\n\\t\\t\\treturn name;\\n\\t\\t}\\n\\n\\t\\tpublic void setName(String name) {\\n\\t\\t\\tthis.name = name;\"}}"
+            },
+            {
+                "id": "0feed7de-d006-42ad-bf7a-788e9912bf61",
+                "name": "read_file",
+                "responseData": "{\"result\":\"success\",\"content\":{\"file_line_count\":434,\"text\":\"\\tpublic static class FunctionDeclaration {\\n\\t\\t@JsonProperty(\\\"name\\\")\\n\\t\\tprivate String name;\\n\\n\\t\\t@JsonProperty(\\\"description\\\")\\n\\t\\tprivate String description;\\n\\n\\t\\t@JsonProperty(\\\"parameters\\\")\\n\\t\\tprivate Object parameters;\\n\\n\\t\\tpublic FunctionDeclaration() {\\n\\t\\t}\\n\\n\\t\\tpublic FunctionDeclaration(String name, String description, Object parameters) {\\n\\t\\t\\tthis.name = name;\\n\\t\\t\\tthis.description = description;\\n\\t\\t\\tthis.parameters = parameters;\\n\\t\\t}\\n\\n\\t\\tpublic String getName() {\\n\\t\\t\\treturn name;\\n\\t\\t}\\n\\n\\t\\tpublic void setName(String name) {\\n\\t\\t\\tthis.name = name;\"}}"
+            }
+        ]
+    },
+    {
+        "type": "ASSISTANT",
+        "content": "",
+        "tool_calls": [
+            {
+                "id": "fc4487db-49e9-45fb-832c-439e64bc3278",
+                "name": "search_for_text",
+                "arguments": "{\"target_path\":\".\",\"text_snippet\":\"new FunctionDeclaration(\",\"is_case_sensitive\":false}"
+            }
+        ]
+    },
+    {
+        "type": "TOOL",
+        "content": "",
+        "tool_responses": [
+            {
+                "id": "fc4487db-49e9-45fb-832c-439e64bc3278",
+                "name": "search_for_text",
+                "responseData": "{\"result\":\"success\",\"content\":[{path=\"models/spring-ai-google-gemini/src/test/java/org/springframework/ai/google/gemini/api/tool/GoogleGeminiApiToolFunctionCallIT.java\", line=91, column=45, content=\"\\t\\tFunctionDeclaration functionDeclaration = new FunctionDeclaration(\"}]}"
+            }
+        ]
+    },
+    {
+        "type": "ASSISTANT",
+        "content": "",
+        "tool_calls": [
+            {
+                "id": "49c1062d-b296-466a-bcae-76f503204516",
+                "name": "read_file",
+                "arguments": "{\"target_file\":\"models/spring-ai-google-gemini/src/test/java/org/springframework/ai/google/gemini/api/tool/GoogleGeminiApiToolFunctionCallIT.java\",\"start_line\":81,\"end_line\":101}"
+            }
+        ]
+    },
+    {
+        "type": "TOOL",
+        "content": "",
+        "tool_responses": [
+            {
+                "id": "49c1062d-b296-466a-bcae-76f503204516",
+                "name": "read_file",
+                "responseData": "{\"result\":\"success\",\"content\":{\"file_line_count\":143,\"text\":\"\\t\\t\\t\\t\\t\\t\\t\\t\\\"type\\\", \\\"number\\\",\\n\\t\\t\\t\\t\\t\\t\\t\\t\\\"description\\\", \\\"The city longitude\\\"\\n\\t\\t\\t\\t\\t\\t),\\n\\t\\t\\t\\t\\t\\t\\\"unit\\\", Map.of(\\n\\t\\t\\t\\t\\t\\t\\t\\t\\\"type\\\", \\\"string\\\",\\n\\t\\t\\t\\t\\t\\t\\t\\t\\\"enum\\\", List.of(\\\"C\\\", \\\"F\\\")\\n\\t\\t\\t\\t\\t\\t)\\n\\t\\t\\t\\t),\\n\\t\\t\\t\\t\\\"required\\\", List.of(\\\"location\\\", \\\"lat\\\", \\\"lon\\\", \\\"unit\\\")\\n\\t\\t);\\n\\t\\tFunctionDeclaration functionDeclaration = new FunctionDeclaration(\\n\\t\\t\\t\\t\\\"getCurrentWeather\\\",\\n\\t\\t\\t\\t\\\"Get the weather in location. Return temperature in Celsius.\\\",\\n\\t\\t\\t\\tfunctionParameters\\n\\t\\t);\\n\\t\\tTool functionTool = new Tool(List.of(functionDeclaration));\\n\\n\\t\\tList<AbstractMessage> messages = new ArrayList<>(List.of(message));\\n\\n\\t\\tGoogleGeminiChatOptions options = GoogleGeminiChatOptions.builder()\\n//                .withToolCallbacks(List.of()) // No direct callback, just schema\"}}"
+            }
+        ]
+    },
+    {
+        "type": "ASSISTANT",
+        "content": "",
+        "tool_calls": [
+            {
+                "id": "9f0a876e-543e-443f-8873-520d57054cfc",
+                "name": "read_file",
+                "arguments": "{\"target_file\":\"models/spring-ai-google-gemini/src/test/java/org/springframework/ai/google/gemini/api/tool/GoogleGeminiApiToolFunctionCallIT.java\",\"start_line\":61,\"end_line\":81}"
+            }
+        ]
+    },
+    {
+        "type": "TOOL",
+        "content": "",
+        "tool_responses": [
+            {
+                "id": "9f0a876e-543e-443f-8873-520d57054cfc",
+                "name": "read_file",
+                "responseData": "{\"result\":\"success\",\"content\":{\"file_line_count\":143,\"text\":\"\\t}\\n\\n\\t@Test\\n\\tpublic void toolFunctionCall() {\\n\\t\\t// Step 1: send the conversation and available functions to the modelpey\\n\\t\\tvar message = new UserMessage(\\\"What's the weather like in San Francisco, Tokyo, and Paris?\\\");\\n\\n\\t\\t// Gemini tool schema: functionDeclarations using GoogleGeminiApi.Tool and FunctionDeclaration\\n\\t\\tvar functionParameters = Map.of(\\n\\t\\t\\t\\t\\\"type\\\", \\\"object\\\",\\n\\t\\t\\t\\t\\\"properties\\\", Map.of(\\n\\t\\t\\t\\t\\t\\t\\\"location\\\", Map.of(\\n\\t\\t\\t\\t\\t\\t\\t\\t\\\"type\\\", \\\"string\\\",\\n\\t\\t\\t\\t\\t\\t\\t\\t\\\"description\\\", \\\"The city and state e.g. San Francisco, CA\\\"\\n\\t\\t\\t\\t\\t\\t),\\n\\t\\t\\t\\t\\t\\t\\\"lat\\\", Map.of(\\n\\t\\t\\t\\t\\t\\t\\t\\t\\\"type\\\", \\\"number\\\",\\n\\t\\t\\t\\t\\t\\t\\t\\t\\\"description\\\", \\\"The city latitude\\\"\\n\\t\\t\\t\\t\\t\\t),\\n\\t\\t\\t\\t\\t\\t\\\"lon\\\", Map.of(\\n\\t\\t\\t\\t\\t\\t\\t\\t\\\"type\\\", \\\"number\\\",\"}}"
+            }
+        ]
+    },
+    {
+        "type": "ASSISTANT",
+        "content": "",
+        "tool_calls": [
+            {
+                "id": "72c18ed2-1284-444b-9fc5-d933361766f9",
+                "name": "read_file",
+                "arguments": "{\"target_file\":\"models/spring-ai-google-gemini/src/main/java/org/springframework/ai/google.gemini/GoogleGeminiChatModel.java\",\"start_line\":1,\"end_line\":60}"
+            }
+        ]
+    },
+    {
+        "type": "TOOL",
+        "content": "",
+        "tool_responses": [
+            {
+                "id": "72c18ed2-1284-444b-9fc5-d933361766f9",
+                "name": "read_file",
+                "responseData": "{\"result\":\"success\",\"content\":{\"file_line_count\":289,\"text\":\"/*\\n * Copyright 2023 - 2024 the original author or authors.\\n *\\n * Licensed under the Apache License, Version 2.0 (the \\\"License\\\");\\n * you may not use this file except in compliance with the License.\\n * You may obtain a copy of the License at\\n *\\n * https://www.apache.org/licenses/LICENSE-2.0\\n *\\n * Unless required by applicable law or agreed to in writing, software\\n * distributed under the License is distributed on an \\\"AS IS\\\" BASIS,\\n * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.\\n * See the License for the specific language governing permissions and\\n * limitations under the License.\\n */\\npackage org.springframework.ai.google.gemini;\\n\\nimport org.slf4j.Logger;\\nimport org.slf4j.LoggerFactory;\\nimport org.springframework.ai.chat.messages.AssistantMessage;\\nimport org.springframework.ai.chat.metadata.ChatResponseMetadata;\\nimport org.springframework.ai.chat.metadata.EmptyUsage;\\nimport org.springframework.ai.chat.model.ChatModel;\\nimport org.springframework.ai.chat.model.ChatResponse;\\nimport org.springframework.ai.chat.model.Generation;\\nimport org.springframework.ai.chat.model.StreamingChatModel;\\nimport org.springframework.ai.chat.prompt.ChatOptions;\\nimport org.springframework.ai.chat.prompt.Prompt;\\nimport org.springframework.ai.google.gemini.api.GoogleGeminiApi;\\nimport org.springframework.ai.google.gemini.api.GoogleGeminiApi.ChatCompletion;\\nimport org.springframework.ai.google.gemini.api.GoogleGeminiApi.ChatCompletionRequest;\\nimport org.springframework.ai.model.tool.ToolCallingManager;\\nimport org.springframework.ai.model.tool.ToolExecutionEligibilityPredicate;\\nimport org.springframework.ai.model.tool.DefaultToolExecutionEligibilityPredicate;\\nimport org.springframework.ai.model.tool.ToolExecutionResult;\\nimport org.springframework.ai.model.tool.ToolCallingChatOptions;\\nimport org.springframework.ai.tool.definition.ToolDefinition;\\nimport org.springframework.ai.google.gemini.metadata.GoogleGeminiUsage;\\nimport org.springframework.ai.model.ModelOptionsUtils;\\nimport org.springframework.ai.retry.RetryUtils;\\nimport org.springframework.http.ResponseEntity;\\nimport org.springframework.retry.support.RetryTemplate;\\nimport org.springframework.util.Assert;\\nimport reactor.core.publisher.Flux;\\n\\nimport java.util.List;\\nimport java.util.Objects;\\n\\n/**\\n * @author Geng Rong\\n */\\n\\npublic class GoogleGeminiChatModel implements ChatModel, StreamingChatModel {\\n\\n\\tprivate static final Logger logger = LoggerFactory.getLogger(GoogleGeminiChatModel.class);\\n\\n\\t/**\\n\\t * The default options used for the chat completion requests.\\n\\t */\\n\\tprivate final GoogleGeminiChatOptions defaultOptions;\"}}"
+            }
+        ]
+    },
+    {
+        "type": "ASSISTANT",
+        "content": "",
+        "tool_calls": [
+            {
+                "id": "85f7372e-7103-448d-bc6d-8c94848d3ac7",
+                "name": "search_for_text",
+                "arguments": "{\"target_path\":\"models/spring-ai-google-gemini/src/main/java/org/springframework/ai/google.gemini/GoogleGeminiChatModel.java\",\"text_snippet\":\"ChatCompletionRequest(\",\"is_case_sensitive\":false}"
+            }
+        ]
+    },
+    {
+        "type": "TOOL",
+        "content": "",
+        "tool_responses": [
+            {
+                "id": "85f7372e-7103-448d-bc6d-8c94848d3ac7",
+                "name": "search_for_text",
+                "responseData": "{\"result\":\"success\",\"content\":[{line=235, column=27, content=\"            request = new ChatCompletionRequest(\"}, {line=242, column=27, content=\"            request = new ChatCompletionRequest(prompt, options);\"}]}"
+            }
+        ]
+    },
+    {
+        "type": "ASSISTANT",
+        "content": "",
+        "tool_calls": [
+            {
+                "id": "4b25ff10-5c57-4755-880e-966b51a868e8",
+                "name": "read_file",
+                "arguments": "{\"target_file\":\"models/spring-ai-google-gemini/src/main/java/org/springframework/ai/google.gemini/GoogleGeminiChatModel.java\",\"start_line\":220,\"end_line\":260}"
+            }
+        ]
+    },
+    {
+        "type": "TOOL",
+        "content": "",
+        "tool_responses": [
+            {
+                "id": "4b25ff10-5c57-4755-880e-966b51a868e8",
+                "name": "read_file",
+                "responseData": "{\"result\":\"success\",\"content\":{\"file_line_count\":289,\"text\":\"//            options = ModelOptionsUtils.merge(options, this.defaultOptions, GoogleGeminiChatOptions.class);\\n//        }\\n\\n        // Add tool definitions if present\\n        List<ToolDefinition> toolDefinitions = this.toolCallingManager != null /* && options instanceof ToolCallingChatOptions toolOptions */\\n                ? this.toolCallingManager.resolveToolDefinitions(options)\\n                : List.of();\\n\\n        ChatCompletionRequest request;\\n        if (!toolDefinitions.isEmpty()) {\\n            // Convert ToolDefinition to Gemini Tool format\\n            List<GoogleGeminiApi.FunctionDeclaration> functionDeclarations = toolDefinitions.stream()\\n                    .map(td -> new GoogleGeminiApi.FunctionDeclaration(td.name(), td.description(), td.inputSchema()))\\n                    .toList();\\n            GoogleGeminiApi.Tool tool = new GoogleGeminiApi.Tool(functionDeclarations);\\n            request = new ChatCompletionRequest(\\n                    prompt.getInstructions().stream().filter(i -> i.getMessageType() != org.springframework.ai.chat.messages.MessageType.SYSTEM).map(GoogleGeminiApi.ChatCompletionMessage::new).toList(),\\n                    GoogleGeminiApi.ChatCompletionMessage.getSystemInstruction(prompt),\\n                    GoogleGeminiApi.GenerationConfig.of(options),\\n                    List.of(tool)\\n            );\\n        } else {\\n            request = new ChatCompletionRequest(prompt, options);\\n        }\\n        return request;\\n    }\\n\\n\\tpublic static Builder builder() {\\n\\t\\treturn new Builder();\\n\\t}\\n\\n    public static class Builder {\\n        private String apiKey;\\n        private GoogleGeminiChatOptions options = GoogleGeminiChatOptions.builder().build();\\n        private RetryTemplate retryTemplate = RetryUtils.DEFAULT_RETRY_TEMPLATE;\\n        private ToolCallingManager toolCallingManager = ToolCallingManager.builder().build();\\n        private ToolExecutionEligibilityPredicate toolExecutionEligibilityPredicate = new DefaultToolExecutionEligibilityPredicate();\\n\\n        public Builder apiKey(String apiKey) {\\n            this.apiKey = apiKey;\\n            return this;\"}}"
+            }
+        ]
+    },
+    {
+        "type": "ASSISTANT",
+        "content": "",
+        "tool_calls": [
+            {
+                "id": "a708c4fa-eddf-4d4e-a4fe-3c38b1e6020c",
+                "name": "read_file",
+                "arguments": "{\"target_file\":\"spring-ai-model/src/main/java/org/springframework/ai/tool/definition/ToolDefinition.java\",\"start_line\":1,\"end_line\":60}"
+            }
+        ]
+    },
+    {
+        "type": "TOOL",
+        "content": "",
+        "tool_responses": [
+            {
+                "id": "a708c4fa-eddf-4d4e-a4fe-3c38b1e6020c",
+                "name": "read_file",
+                "responseData": "{\"result\":\"success\",\"content\":{\"file_line_count\":50,\"text\":\"/*\\n * Copyright 2023-2025 the original author or authors.\\n *\\n * Licensed under the Apache License, Version 2.0 (the \\\"License\\\");\\n * you may not use this file except in compliance with the License.\\n * You may obtain a copy of the License at\\n *\\n *      https://www.apache.org/licenses/LICENSE-2.0\\n *\\n * Unless required by applicable law or agreed to in writing, software\\n * distributed under the License is distributed on an \\\"AS IS\\\" BASIS,\\n * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.\\n * See the License for the specific language governing permissions and\\n * limitations under the License.\\n */\\n\\npackage org.springframework.ai.tool.definition;\\n\\n/**\\n * Definition used by the AI model to determine when and how to call the tool.\\n *\\n * @author Thomas Vitale\\n * @since 1.0.0\\n */\\npublic interface ToolDefinition {\\n\\n\\t/**\\n\\t * The tool name. Unique within the tool set provided to a model.\\n\\t */\\n\\tString name();\\n\\n\\t/**\\n\\t * The tool description, used by the AI model to determine what the tool does.\\n\\t */\\n\\tString description();\\n\\n\\t/**\\n\\t * The schema of the parameters used to call the tool.\\n\\t */\\n\\tString inputSchema();\\n\\n\\t/**\\n\\t * Create a default {@link ToolDefinition} builder.\\n\\t */\\n\\tstatic DefaultToolDefinition.Builder builder() {\\n\\t\\treturn DefaultToolDefinition.builder();\\n\\t}\\n\\n}\\n\"}}"
+            }
+        ]
+    },
+    {
+        "type": "ASSISTANT",
+        "content": "",
+        "tool_calls": [
+            {
+                "id": "1d3a8c10-55c9-461f-8f57-7a5a8e236313",
+                "name": "search_for_text",
+                "arguments": "{\"target_path\":\".\",\"text_snippet\":\"DefaultToolDefinition\",\"is_case_sensitive\":false}"
+            }
+        ]
+    },
+    {
+        "type": "TOOL",
+        "content": "",
+        "tool_responses": [
+            {
+                "id": "1d3a8c10-55c9-461f-8f57-7a5a8e236313",
+                "name": "search_for_text",
+                "responseData": "{\"result\":\"success\",\"content\":[{path=\"models/spring-ai-openai/src/test/java/org/springframework/ai/openai/ChatCompletionRequestTests.java\", line=30, column=47, content=\"import org.springframework.ai.tool.definition.DefaultToolDefinition;\"}, {path=\"models/spring-ai-openai/src/test/java/org/springframework/ai/openai/ChatCompletionRequestTests.java\", line=170, column=26, content=\"\\t\\t\\tthis.toolDefinition = DefaultToolDefinition.builder().name(name).inputSchema(\\\\\\\"{}\\\\\\\").build();\"}, {path=\"mcp/common/src/main/java/org/springframework/ai/mcp/AsyncMcpToolCallback.java\", line=29, column=47, content=\"import org.springframework.ai.tool.definition.DefaultToolDefinition;\"}, {path=\"mcp/common/src/main/java/org/springframework/ai/mcp/SyncMcpToolCallback.java\", line=30, column=47, content=\"import org.springframework.ai.tool.definition.DefaultToolDefinition;\"}, {path=\"mcp/common/src/main/java/org/springframework/ai/mcp/AsyncMcpToolCallback.java\", line=92, column=10, content=\"\\t\\treturn DefaultToolDefinition.builder()\"}, {path=\"mcp/common/src/main/java/org/springframework/ai/mcp/SyncMcpToolCallback.java\", line=96, column=10, content=\"\\t\\treturn DefaultToolDefinition.builder()\"}, {path=\"models/spring-ai-ollama/src/test/java/org/springframework/ai/ollama/OllamaChatRequestTests.java\", line=29, column=47, content=\"import org.springframework.ai.tool.definition.DefaultToolDefinition;\"}, {path=\"mcp/common/src/test/java/org/springframework/ai/mcp/ToolUtilsTests.java\", line=38, column=47, content=\"import org.springframework.ai.tool.definition.DefaultToolDefinition;\"}, {path=\"models/spring-ai-ollama/src/test/java/org/springframework/ai/ollama/OllamaChatRequestTests.java\", line=175, column=26, content=\"\\t\\t\\tthis.toolDefinition = DefaultToolDefinition.builder().name(name).inputSchema(\\\\\\\"{}\\\\\\\").build();\"}, {path=\"mcp/common/src/test/java/org/springframework/ai/mcp/ToolUtilsTests.java\", line=197, column=31, content=\"\\t\\tToolDefinition definition = DefaultToolDefinition.builder()\"}, {path=\"mcp/common/src/test/java/org/springframework/ai/mcp/ToolUtilsTests.java\", line=209, column=31, content=\"\\t\\tToolDefinition definition = DefaultToolDefinition.builder()\"}, {path=\"models/spring-ai-mistral-ai/src/test/java/org/springframework/ai/mistralai/MistralAiChatCompletionRequestTest.java\", line=28, column=47, content=\"import org.springframework.ai.tool.definition.DefaultToolDefinition;\"}, {path=\"models/spring-ai-mistral-ai/src/test/java/org/springframework/ai/mistralai/MistralAiChatCompletionRequestTest.java\", line=110, column=26, content=\"\\t\\t\\tthis.toolDefinition = DefaultToolDefinition.builder().name(name).inputSchema(\\\\\\\"{}\\\\\\\").build();\"}, {path=\"spring-ai-model/src/main/java/org/springframework/ai/tool/support/ToolDefinitions.java\", line=21, column=47, content=\"import org.springframework.ai.tool.definition.DefaultToolDefinition;\"}, {path=\"spring-ai-model/src/main/java/org/springframework/ai/tool/support/ToolDefinitions.java\", line=47, column=16, content=\"\\tpublic static DefaultToolDefinition.Builder builder(Method method) {\"}, {path=\"spring-ai-model/src/main/java/org/springframework/ai/tool/support/ToolDefinitions.java\", line=49, column=10, content=\"\\t\\treturn DefaultToolDefinition.builder()\"}, {path=\"spring-ai-model/src/main/java/org/springframework/ai/tool/function/FunctionToolCallback.java\", line=30, column=47, content=\"import org.springframework.ai.tool.definition.DefaultToolDefinition;\"}, {path=\"spring-ai-model/src/main/java/org/springframework/ai/tool/function/FunctionToolCallback.java\", line=207, column=25, content=\"\\t\\t\\tvar toolDefinition = DefaultToolDefinition.builder()\"}, {path=\"spring-ai-model/src/main/java/org/springframework/ai/tool/definition/DefaultToolDefinition.java\", line=29, column=15, content=\"public record DefaultToolDefinition(String name, String description, String inputSchema) implements ToolDefinition {\"}, {path=\"spring-ai-model/src/main/java/org/springframework/ai/tool/definition/ToolDefinition.java\", line=45, column=9, content=\"\\tstatic DefaultToolDefinition.Builder builder() {\"}, {path=\"spring-ai-model/src/main/java/org/springframework/ai/tool/definition/DefaultToolDefinition.java\", line=31, column=9, content=\"\\tpublic DefaultToolDefinition {\"}, {path=\"spring-ai-model/src/main/java/org/springframework/ai/tool/definition/ToolDefinition.java\", line=46, column=10, content=\"\\t\\treturn DefaultToolDefinition.builder();\"}, {path=\"spring-ai-model/src/main/java/org/springframework/ai/tool/definition/DefaultToolDefinition.java\", line=72, column=15, content=\"\\t\\t\\treturn new DefaultToolDefinition(this.name, this.description, this.inputSchema);\"}, {path=\"models/spring-ai-vertex-ai-gemini/src/main/java/org/springframework/ai/vertexai/gemini/schema/VertexToolCallingManager.java\", line=28, column=47, content=\"import org.springframework.ai.tool.definition.DefaultToolDefinition;\"}, {path=\"models/spring-ai-vertex-ai-gemini/src/main/java/org/springframework/ai/vertexai/gemini/schema/VertexToolCallingManager.java\", line=79, column=11, content=\"\\t\\t\\treturn DefaultToolDefinition.builder()\"}, {path=\"spring-ai-model/src/test/java/org/springframework/ai/model/tool/DefaultToolCallingManagerIT.java\", line=36, column=47, content=\"import org.springframework.ai.tool.definition.DefaultToolDefinition;\"}, {path=\"spring-ai-model/src/test/java/org/springframework/ai/model/tool/DefaultToolCallingManagerIT.java\", line=134, column=26, content=\"\\t\\t\\tthis.toolDefinition = DefaultToolDefinition.builder().name(name).inputSchema(\\\\\\\"{}\\\\\\\").build();\"}, {path=\"spring-ai-model/src/test/java/org/springframework/ai/model/tool/DefaultToolCallingManagerIT.java\", line=139, column=26, content=\"\\t\\t\\tthis.toolDefinition = DefaultToolDefinition.builder().name(name).inputSchema(\\\\\\\"{}\\\\\\\").build();\"}, {path=\"spring-ai-model/src/test/java/org/springframework/ai/tool/method/MethodToolCallbackGenericTypesTest.java\", line=26, column=47, content=\"import org.springframework.ai.tool.definition.DefaultToolDefinition;\"}, {path=\"spring-ai-model/src/test/java/org/springframework/ai/tool/method/MethodToolCallbackGenericTypesTest.java\", line=43, column=35, content=\"\\t\\tToolDefinition toolDefinition = DefaultToolDefinition.builder()\"}, {path=\"spring-ai-model/src/test/java/org/springframework/ai/tool/method/MethodToolCallbackGenericTypesTest.java\", line=77, column=35, content=\"\\t\\tToolDefinition toolDefinition = DefaultToolDefinition.builder()\"}, {path=\"spring-ai-model/src/test/java/org/springframework/ai/model/tool/ToolCallingChatOptionsTests.java\", line=26, column=47, content=\"import org.springframework.ai.tool.definition.DefaultToolDefinition;\"}, {path=\"spring-ai-model/src/test/java/org/springframework/ai/tool/method/MethodToolCallbackGenericTypesTest.java\", line=111, column=35, content=\"\\t\\tToolDefinition toolDefinition = DefaultToolDefinition.builder()\"}, {path=\"spring-ai-model/src/test/java/org/springframework/ai/tool/method/MethodToolCallbackGenericTypesTest.java\", line=148, column=35, content=\"\\t\\tToolDefinition toolDefinition = DefaultToolDefinition.builder()\"}, {path=\"spring-ai-model/src/test/java/org/springframework/ai/model/tool/ToolCallingChatOptionsTests.java\", line=184, column=26, content=\"\\t\\t\\tthis.toolDefinition = DefaultToolDefinition.builder().name(name).inputSchema(\\\\\\\"{}\\\\\\\").build();\"}, {path=\"spring-ai-model/src/test/java/org/springframework/ai/model/tool/DefaultToolCallingManagerTests.java\", line=34, column=47, content=\"import org.springframework.ai.tool.definition.DefaultToolDefinition;\"}, {path=\"spring-ai-model/src/test/java/org/springframework/ai/model/tool/DefaultToolCallingManagerTests.java\", line=374, column=26, content=\"\\t\\t\\tthis.toolDefinition = DefaultToolDefinition.builder().name(name).inputSchema(\\\\\\\"{}\\\\\\\").build();\"}, {path=\"spring-ai-model/src/test/java/org/springframework/ai/model/tool/DefaultToolCallingManagerTests.java\", line=379, column=26, content=\"\\t\\t\\tthis.toolDefinition = DefaultToolDefinition.builder().name(name).inputSchema(\\\\\\\"{}\\\\\\\").build();\"}, {path=\"spring-ai-model/src/test/java/org/springframework/ai/model/tool/DefaultToolCallingManagerTests.java\", line=405, column=26, content=\"\\t\\t\\tthis.toolDefinition = DefaultToolDefinition.builder().name(name).inputSchema(\\\\\\\"{}\\\\\\\").build();\"}, {path=\"spring-ai-model/src/test/java/org/springframework/ai/chat/observation/DefaultChatModelObservationConventionTests.java\", line=37, column=47, content=\"import org.springframework.ai.tool.definition.DefaultToolDefinition;\"}, {path=\"spring-ai-model/src/test/java/org/springframework/ai/chat/observation/DefaultChatModelObservationConventionTests.java\", line=231, column=26, content=\"\\t\\t\\tthis.toolDefinition = DefaultToolDefinition.builder().name(name).inputSchema(\\\\\\\"{}\\\\\\\").build();\"}, {path=\"spring-ai-model/src/test/java/org/springframework/ai/chat/observation/DefaultChatModelObservationConventionTests.java\", line=236, column=26, content=\"\\t\\t\\tthis.toolDefinition = DefaultToolDefinition.builder().name(name).inputSchema(\\\\\\\"{}\\\\\\\").build();\"}, {path=\"spring-ai-client-chat/src/test/java/org/springframework/ai/chat/client/observation/DefaultChatClientObservationConventionTests.java\", line=42, column=47, content=\"import org.springframework.ai.tool.definition.DefaultToolDefinition;\"}, {path=\"spring-ai-client-chat/src/test/java/org/springframework/ai/chat/client/observation/DefaultChatClientObservationConventionTests.java\", line=90, column=12, content=\"\\t\\t\\t\\treturn DefaultToolDefinition.builder().name(name).inputSchema(\\\\\\\"{}\\\\\\\").build();\"}, {path=\"spring-ai-client-chat/src/test/java/org/springframework/ai/chat/client/DefaultChatClientUtilsTests.java\", line=34, column=47, content=\"import org.springframework.ai.tool.definition.DefaultToolDefinition;\"}, {path=\"spring-ai-client-chat/src/test/java/org/springframework/ai/chat/client/DefaultChatClientUtilsTests.java\", line=424, column=26, content=\"\\t\\t\\tthis.toolDefinition = DefaultToolDefinition.builder().name(name).inputSchema(\\\\\\\"{}\\\\\\\").build();\"}, {path=\"spring-ai-client-chat/src/test/java/org/springframework/ai/chat/client/DefaultChatClientUtilsTests.java\", line=429, column=26, content=\"\\t\\t\\tthis.toolDefinition = DefaultToolDefinition.builder().name(name).inputSchema(\\\\\\\"{}\\\\\\\").build();\"}, {path=\"spring-ai-docs/src/main/antora/modules/ROOT/pages/api/tools.adoc\", line=760, column=108, content=\"The `ToolDefinition.Builder` lets you build a `ToolDefinition` instance using the default implementation (`DefaultToolDefinition`).\"}]}"
+            }
+        ]
+    },
+    {
+        "type": "ASSISTANT",
+        "content": "",
+        "tool_calls": [
+            {
+                "id": "b49c274b-97cd-442c-bc64-cb8be28522b9",
+                "name": "read_file",
+                "arguments": "{\"target_file\":\"spring-ai-model/src/main/java/org/springframework/ai/tool/definition/DefaultToolDefinition.java\",\"start_line\":1,\"end_line\":60}"
+            }
+        ]
+    },
+    {
+        "type": "TOOL",
+        "content": "",
+        "tool_responses": [
+            {
+                "id": "b49c274b-97cd-442c-bc64-cb8be28522b9",
+                "name": "read_file",
+                "responseData": "{\"result\":\"success\",\"content\":{\"file_line_count\":78,\"text\":\"/*\\n * Copyright 2023-2025 the original author or authors.\\n *\\n * Licensed under the Apache License, Version 2.0 (the \\\"License\\\");\\n * you may not use this file except in compliance with the License.\\n * You may obtain a copy of the License at\\n *\\n *      https://www.apache.org/licenses/LICENSE-2.0\\n *\\n * Unless required by applicable law or agreed to in writing, software\\n * distributed under the License is distributed on an \\\"AS IS\\\" BASIS,\\n * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.\\n * See the License for the specific language governing permissions and\\n * limitations under the License.\\n */\\n\\npackage org.springframework.ai.tool.definition;\\n\\nimport org.springframework.ai.util.ParsingUtils;\\nimport org.springframework.util.Assert;\\nimport org.springframework.util.StringUtils;\\n\\n/**\\n * Default implementation of {@link ToolDefinition}.\\n *\\n * @author Thomas Vitale\\n * @since 1.0.0\\n */\\npublic record DefaultToolDefinition(String name, String description, String inputSchema) implements ToolDefinition {\\n\\n\\tpublic DefaultToolDefinition {\\n\\t\\tAssert.hasText(name, \\\"name cannot be null or empty\\\");\\n\\t\\tAssert.hasText(description, \\\"description cannot be null or empty\\\");\\n\\t\\tAssert.hasText(inputSchema, \\\"inputSchema cannot be null or empty\\\");\\n\\t}\\n\\n\\tpublic static Builder builder() {\\n\\t\\treturn new Builder();\\n\\t}\\n\\n\\tpublic static final class Builder {\\n\\n\\t\\tprivate String name;\\n\\n\\t\\tprivate String description;\\n\\n\\t\\tprivate String inputSchema;\\n\\n\\t\\tprivate Builder() {\\n\\t\\t}\\n\\n\\t\\tpublic Builder name(String name) {\\n\\t\\t\\tthis.name = name;\\n\\t\\t\\treturn this;\\n\\t\\t}\\n\\n\\t\\tpublic Builder description(String description) {\\n\\t\\t\\tthis.description = description;\\n\\t\\t\\treturn this;\\n\\t\\t}\"}}"
+            }
+        ]
+    },
+    {
+        "type": "ASSISTANT",
+        "content": "",
+        "tool_calls": [
+            {
+                "id": "3a607014-04a5-40cb-a4c6-591d4fd2516a",
+                "name": "read_file",
+                "arguments": "{\"target_file\":\"spring-ai-model/src/main/java/org/springframework/ai/util/ParsingUtils.java\",\"start_line\":1,\"end_line\":60}"
+            }
+        ]
+    },
+    {
+        "type": "TOOL",
+        "content": "",
+        "tool_responses": [
+            {
+                "id": "3a607014-04a5-40cb-a4c6-591d4fd2516a",
+                "name": "read_file",
+                "responseData": "{\"result\":\"failure\",\"reason\":\"VirtualFile not found for path: spring-ai-model/src/main/java/org/springframework/ai/util/ParsingUtils.java\"}"
+            }
+        ]
+    },
+    {
+        "type": "ASSISTANT",
+        "content": "",
+        "tool_calls": [
+            {
+                "id": "878261d1-71c0-48f5-b132-0f59b8ae940a",
+                "name": "search_for_text",
+                "arguments": "{\"target_path\":\"spring-ai-model/src/main/java/org/springframework/ai/util/\",\"text_snippet\":\"class ParsingUtils\",\"is_case_sensitive\":false}"
+            }
+        ]
+    },
+    {
+        "type": "TOOL",
+        "content": "",
+        "tool_responses": [
+            {
+                "id": "878261d1-71c0-48f5-b132-0f59b8ae940a",
+                "name": "search_for_text",
+                "responseData": "{\"result\":\"success\",\"content\":[]}"
+            }
+        ]
+    },
+    {
+        "type": "ASSISTANT",
+        "content": "",
+        "tool_calls": [
+            {
+                "id": "c7fc46e7-416a-486b-ae1f-5f53c6f0ee0d",
+                "name": "search_for_text",
+                "arguments": "{\"target_path\":\".\",\"text_snippet\":\"inputSchema(\",\"is_case_sensitive\":false}"
+            }
+        ]
+    },
+    {
+        "type": "TOOL",
+        "content": "",
+        "tool_responses": [
+            {
+                "id": "c7fc46e7-416a-486b-ae1f-5f53c6f0ee0d",
+                "name": "search_for_text",
+                "responseData": "{\"result\":\"success\",\"content\":[{path=\"models/spring-ai-openai/src/main/java/org/springframework/ai/openai/OpenAiChatModel.java\", line=676, column=21, content=\"\\t\\t\\t\\t\\ttoolDefinition.inputSchema());\"}, {path=\"models/spring-ai-ollama/src/main/java/org/springframework/ai/ollama/OllamaChatModel.java\", line=523, column=21, content=\"\\t\\t\\t\\t\\ttoolDefinition.inputSchema());\"}, {path=\"models/spring-ai-openai/src/test/java/org/springframework/ai/openai/ChatCompletionRequestTests.java\", line=170, column=69, content=\"\\t\\t\\tthis.toolDefinition = DefaultToolDefinition.builder().name(name).inputSchema(\\\\\\\"{}\\\\\\\").build();\"}, {path=\"mcp/common/src/main/java/org/springframework/ai/mcp/SyncMcpToolCallback.java\", line=99, column=5, content=\"\\t\\t\\t.inputSchema(ModelOptionsUtils.toJsonString(this.tool.inputSchema()))\"}, {path=\"mcp/common/src/test/java/org/springframework/ai/mcp/ToolUtilsTests.java\", line=200, column=5, content=\"\\t\\t\\t.inputSchema(\\\\\\\"{}\\\\\\\")\"}, {path=\"models/spring-ai-ollama/src/test/java/org/springframework/ai/ollama/OllamaChatRequestTests.java\", line=175, column=69, content=\"\\t\\t\\tthis.toolDefinition = DefaultToolDefinition.builder().name(name).inputSchema(\\\\\\\"{}\\\\\\\").build();\"}, {path=\"mcp/common/src/main/java/org/springframework/ai/mcp/McpToolUtils.java\", line=171, column=86, content=\"\\t\\t\\t\\ttoolCallback.getToolDefinition().description(), toolCallback.getToolDefinition().inputSchema());\"}, {path=\"mcp/common/src/main/java/org/springframework/ai/mcp/SyncMcpToolCallback.java\", line=99, column=58, content=\"\\t\\t\\t.inputSchema(ModelOptionsUtils.toJsonString(this.tool.inputSchema()))\"}, {path=\"mcp/common/src/test/java/org/springframework/ai/mcp/ToolUtilsTests.java\", line=212, column=5, content=\"\\t\\t\\t.inputSchema(\\\\\\\"{}\\\\\\\")\"}, {path=\"models/spring-ai-google-gemini/src/main/java/org/springframework/ai/google.gemini/GoogleGeminiChatModel.java\", line=232, column=104, content=\"                    .map(td -> new GoogleGeminiApi.FunctionDeclaration(td.name(), td.description(), td.inputSchema()))\"}, {path=\"mcp/common/src/main/java/org/springframework/ai/mcp/AsyncMcpToolCallback.java\", line=95, column=5, content=\"\\t\\t\\t.inputSchema(ModelOptionsUtils.toJsonString(this.tool.inputSchema()))\"}, {path=\"mcp/common/src/main/java/org/springframework/ai/mcp/AsyncMcpToolCallback.java\", line=95, column=58, content=\"\\t\\t\\t.inputSchema(ModelOptionsUtils.toJsonString(this.tool.inputSchema()))\"}, {path=\"models/spring-ai-vertex-ai-gemini/src/main/java/org/springframework/ai/vertexai/gemini/VertexAiGeminiChatModel.java\", line=672, column=49, content=\"\\t\\t\\t\\t\\t.setParameters(jsonToSchema(toolDefinition.inputSchema()))\"}, {path=\"models/spring-ai-mistral-ai/src/test/java/org/springframework/ai/mistralai/MistralAiChatCompletionRequestTest.java\", line=110, column=69, content=\"\\t\\t\\tthis.toolDefinition = DefaultToolDefinition.builder().name(name).inputSchema(\\\\\\\"{}\\\\\\\").build();\"}, {path=\"models/spring-ai-azure-openai/src/main/java/org/springframework/ai/azure/openai/AzureOpenAiChatModel.java\", line=554, column=93, content=\"\\t\\t\\tBinaryData parameters = BinaryData.fromObject(ModelOptionsUtils.jsonToMap(toolDefinition.inputSchema()));\"}, {path=\"models/spring-ai-anthropic/src/main/java/org/springframework/ai/anthropic/AnthropicChatModel.java\", line=541, column=40, content=\"\\t\\t\\tString inputSchema = toolDefinition.inputSchema();\"}, {path=\"models/spring-ai-zhipuai/src/main/java/org/springframework/ai/zhipuai/ZhiPuAiChatModel.java\", line=423, column=21, content=\"\\t\\t\\t\\t\\ttoolDefinition.inputSchema());\"}, {path=\"models/spring-ai-minimax/src/main/java/org/springframework/ai/minimax/MiniMaxChatModel.java\", line=569, column=21, content=\"\\t\\t\\t\\t\\ttoolDefinition.inputSchema());\"}, {path=\"models/spring-ai-mistral-ai/src/main/java/org/springframework/ai/mistralai/MistralAiChatModel.java\", line=537, column=21, content=\"\\t\\t\\t\\t\\ttoolDefinition.inputSchema());\"}, {path=\"spring-ai-model/src/main/java/org/springframework/ai/tool/support/ToolDefinitions.java\", line=52, column=5, content=\"\\t\\t\\t.inputSchema(JsonSchemaGenerator.generateForMethodInput(method));\"}, {path=\"spring-ai-model/src/main/java/org/springframework/ai/tool/function/FunctionToolCallback.java\", line=179, column=24, content=\"\\t\\tpublic Builder<I, O> inputSchema(String inputSchema) {\"}, {path=\"spring-ai-model/src/main/java/org/springframework/ai/tool/function/FunctionToolCallback.java\", line=211, column=6, content=\"\\t\\t\\t\\t.inputSchema(StringUtils.hasText(this.inputSchema) ? this.inputSchema\"}, {path=\"spring-ai-model/src/main/java/org/springframework/ai/tool/definition/DefaultToolDefinition.java\", line=62, column=18, content=\"\\t\\tpublic Builder inputSchema(String inputSchema) {\"}, {path=\"models/spring-ai-vertex-ai-gemini/src/main/java/org/springframework/ai/vertexai/gemini/schema/VertexToolCallingManager.java\", line=75, column=60, content=\"\\t\\t\\tObjectNode jsonSchema = JsonSchemaConverter.fromJson(td.inputSchema());\"}, {path=\"spring-ai-model/src/main/java/org/springframework/ai/tool/definition/ToolDefinition.java\", line=40, column=9, content=\"\\tString inputSchema();\"}, {path=\"models/spring-ai-bedrock-converse/src/main/java/org/springframework/ai/bedrock/converse/BedrockProxyChatModel.java\", line=401, column=41, content=\"\\t\\t\\t\\tString inputSchema = toolDefinition.inputSchema();\"}, {path=\"models/spring-ai-vertex-ai-gemini/src/main/java/org/springframework/ai/vertexai/gemini/schema/VertexToolCallingManager.java\", line=82, column=6, content=\"\\t\\t\\t\\t.inputSchema(openApiSchema.toPrettyString())\"}, {path=\"spring-ai-model/src/main/java/org/springframework/ai/tool/resolution/SpringBeanToolCallbackResolver.java\", line=135, column=7, content=\"\\t\\t\\t\\t\\t.inputSchema(generateSchema(toolInputType))\"}, {path=\"spring-ai-model/src/main/java/org/springframework/ai/tool/resolution/SpringBeanToolCallbackResolver.java\", line=142, column=7, content=\"\\t\\t\\t\\t\\t.inputSchema(generateSchema(toolInputType))\"}, {path=\"spring-ai-model/src/main/java/org/springframework/ai/tool/resolution/SpringBeanToolCallbackResolver.java\", line=149, column=7, content=\"\\t\\t\\t\\t\\t.inputSchema(generateSchema(toolInputType))\"}, {path=\"spring-ai-model/src/main/java/org/springframework/ai/tool/resolution/SpringBeanToolCallbackResolver.java\", line=158, column=6, content=\"\\t\\t\\t\\t.inputSchema(generateSchema(toolInputType))\"}, {path=\"spring-ai-model/src/main/java/org/springframework/ai/tool/resolution/SpringBeanToolCallbackResolver.java\", line=165, column=6, content=\"\\t\\t\\t\\t.inputSchema(generateSchema(toolInputType))\"}, {path=\"spring-ai-model/src/main/java/org/springframework/ai/tool/resolution/SpringBeanToolCallbackResolver.java\", line=172, column=6, content=\"\\t\\t\\t\\t.inputSchema(generateSchema(toolInputType))\"}, {path=\"spring-ai-model/src/main/java/org/springframework/ai/tool/resolution/SpringBeanToolCallbackResolver.java\", line=179, column=6, content=\"\\t\\t\\t\\t.inputSchema(generateSchema(toolInputType))\"}, {path=\"models/spring-ai-bedrock-converse/src/main/java/org/springframework/ai/bedrock/converse/BedrockProxyChatModel.java\", line=406, column=8, content=\"\\t\\t\\t\\t\\t\\t.inputSchema(ToolInputSchema.fromJson(\"}, {path=\"models/spring-ai-vertex-ai-gemini/src/test/java/org/springframework/ai/vertexai/gemini/tool/VertexAiGeminiChatModelToolCallingIT.java\", line=87, column=6, content=\"\\t\\t\\t\\t.inputSchema(openApiSchema)\"}, {path=\"spring-ai-docs/src/main/antora/modules/ROOT/pages/api/tools.adoc\", line=753, column=9, content=\"\\tString inputSchema();\"}, {path=\"spring-ai-docs/src/main/antora/modules/ROOT/pages/api/tools.adoc\", line=767, column=6, content=\"    .inputSchema(\\\\\\\"\\\\\\\"\\\\\\\"\"}, {path=\"spring-ai-docs/src/main/antora/modules/ROOT/pages/api/tools.adoc\", line=807, column=6, content=\"    .inputSchema(JsonSchemaGenerator.generateForMethodInput(method))\"}, {path=\"spring-ai-model/src/test/java/org/springframework/ai/tool/observation/DefaultToolCallingObservationConventionTests.java\", line=48, column=86, content=\"\\t\\t\\t.toolDefinition(ToolDefinition.builder().name(\\\\\\\"toolA\\\\\\\").description(\\\\\\\"description\\\\\\\").inputSchema(\\\\\\\"{}\\\\\\\").build())\"}, {path=\"spring-ai-model/src/test/java/org/springframework/ai/tool/observation/DefaultToolCallingObservationConventionTests.java\", line=57, column=86, content=\"\\t\\t\\t.toolDefinition(ToolDefinition.builder().name(\\\\\\\"toolA\\\\\\\").description(\\\\\\\"description\\\\\\\").inputSchema(\\\\\\\"{}\\\\\\\").build())\"}, {path=\"spring-ai-model/src/test/java/org/springframework/ai/tool/method/MethodToolCallbackGenericTypesTest.java\", line=46, column=5, content=\"\\t\\t\\t.inputSchema(\\\\\\\"{}\\\\\\\")\"}, {path=\"spring-ai-model/src/main/java/org/springframework/ai/tool/observation/DefaultToolCallingObservationConvention.java\", line=101, column=51, content=\"\\t\\tString toolSchema = context.getToolDefinition().inputSchema();\"}, {path=\"spring-ai-model/src/test/java/org/springframework/ai/tool/observation/DefaultToolCallingObservationConventionTests.java\", line=67, column=86, content=\"\\t\\t\\t.toolDefinition(ToolDefinition.builder().name(\\\\\\\"toolA\\\\\\\").description(\\\\\\\"description\\\\\\\").inputSchema(\\\\\\\"{}\\\\\\\").build())\"}, {path=\"spring-ai-model/src/test/java/org/springframework/ai/tool/method/MethodToolCallbackGenericTypesTest.java\", line=80, column=5, content=\"\\t\\t\\t.inputSchema(\\\\\\\"{}\\\\\\\")\"}, {path=\"spring-ai-model/src/test/java/org/springframework/ai/tool/observation/DefaultToolCallingObservationConventionTests.java\", line=89, column=86, content=\"\\t\\t\\t.toolDefinition(ToolDefinition.builder().name(\\\\\\\"toolA\\\\\\\").description(\\\\\\\"description\\\\\\\").inputSchema(\\\\\\\"{}\\\\\\\").build())\"}, {path=\"spring-ai-model/src/test/java/org/springframework/ai/tool/method/MethodToolCallbackGenericTypesTest.java\", line=114, column=5, content=\"\\t\\t\\t.inputSchema(\\\\\\\"{}\\\\\\\")\"}, {path=\"spring-ai-model/src/test/java/org/springframework/ai/tool/method/MethodToolCallbackGenericTypesTest.java\", line=151, column=5, content=\"\\t\\t\\t.inputSchema(\\\\\\\"{}\\\\\\\")\"}, {path=\"spring-ai-model/src/test/java/org/springframework/ai/chat/observation/DefaultChatModelObservationConventionTests.java\", line=231, column=69, content=\"\\t\\t\\tthis.toolDefinition = DefaultToolDefinition.builder().name(name).inputSchema(\\\\\\\"{}\\\\\\\").build();\"}, {path=\"spring-ai-model/src/test/java/org/springframework/ai/chat/observation/DefaultChatModelObservationConventionTests.java\", line=236, column=69, content=\"\\t\\t\\tthis.toolDefinition = DefaultToolDefinition.builder().name(name).inputSchema(\\\\\\\"{}\\\\\\\").build();\"}]}"
+            }
+        ]
+    },
+    {
+        "type": "ASSISTANT",
+        "content": "",
+        "tool_calls": [
+            {
+                "id": "913997cd-f669-4c91-b4f1-220be2ca17ce",
+                "name": "search_for_text",
+                "arguments": "{\"target_path\":\"spring-ai-model/src/main/java/org/springframework/ai/model/ModelOptionsUtils.java\",\"text_snippet\":\"jsonToMap\",\"is_case_sensitive\":false}"
+            }
+        ]
+    },
+    {
+        "type": "TOOL",
+        "content": "",
+        "tool_responses": [
+            {
+                "id": "913997cd-f669-4c91-b4f1-220be2ca17ce",
+                "name": "search_for_text",
+                "responseData": "{\"result\":\"success\",\"content\":[{line=91, column=36, content=\"\\tpublic static Map<String, Object> jsonToMap(String json) {\"}, {line=92, column=10, content=\"\\t\\treturn jsonToMap(json, OBJECT_MAPPER);\"}, {line=102, column=36, content=\"\\tpublic static Map<String, Object> jsonToMap(String json, ObjectMapper objectMapper) {\"}]}"
+            }
+        ]
+    },
+    {
+        "type": "ASSISTANT",
+        "content": "",
+        "tool_calls": [
+            {
+                "id": "fae92345-d4d7-403a-af72-7044d7a1a44a",
+                "name": "read_file",
+                "arguments": "{\"target_file\":\"spring-ai-model/src/main/java/org/springframework/ai/model/ModelOptionsUtils.java\",\"start_line\":91,\"end_line\":110}"
+            }
+        ]
+    },
+    {
+        "type": "TOOL",
+        "content": "",
+        "tool_responses": [
+            {
+                "id": "fae92345-d4d7-403a-af72-7044d7a1a44a",
+                "name": "read_file",
+                "responseData": "{\"result\":\"success\",\"content\":{\"file_line_count\":447,\"text\":\"\\tpublic static Map<String, Object> jsonToMap(String json) {\\n\\t\\treturn jsonToMap(json, OBJECT_MAPPER);\\n\\t}\\n\\n\\t/**\\n\\t * Converts the given JSON string to a Map of String and Object using a custom\\n\\t * ObjectMapper.\\n\\t * @param json the JSON string to convert to a Map.\\n\\t * @param objectMapper the ObjectMapper to use for deserialization.\\n\\t * @return the converted Map.\\n\\t */\\n\\tpublic static Map<String, Object> jsonToMap(String json, ObjectMapper objectMapper) {\\n\\t\\ttry {\\n\\t\\t\\treturn objectMapper.readValue(json, MAP_TYPE_REF);\\n\\t\\t}\\n\\t\\tcatch (Exception e) {\\n\\t\\t\\tthrow new RuntimeException(e);\\n\\t\\t}\\n\\t}\\n\"}}"
+            }
+        ]
+    },
+    {
+        "type": "ASSISTANT",
+        "content": "The root cause is that `GoogleGeminiChatModel` passes `td.inputSchema()` (a JSON string) directly as the `parameters` field of `FunctionDeclaration`, but Gemini expects a parsed JSON object, not a string.\n\n**To fix this:**  \nIn `GoogleGeminiChatModel`, change:\n```java\n.map(td -> new GoogleGeminiApi.FunctionDeclaration(td.name(), td.description(), td.inputSchema()))\n```\nto:\n```java\n.map(td -> new GoogleGeminiApi.FunctionDeclaration(td.name(), td.description(), ModelOptionsUtils.jsonToMap(td.inputSchema())))\n```\nThis will ensure the `parameters` field is a structured object, not a string, matching Gemini's API expectations.\n\nI'll make this change in `GoogleGeminiChatModel`.",
+        "tool_calls": [
+            {
+                "id": "82e4dcad-f904-455f-986a-d4373ff2231b",
+                "name": "edit_file",
+                "arguments": "{\"patch\":\"*** Begin Patch\\n*** Update File: models/spring-ai-google-gemini/src/main/java/org/springframework/ai/google.gemini/GoogleGeminiChatModel.java\\n@@     public ChatCompletionRequest toChatCompletionRequest(Prompt prompt, GoogleGeminiChatOptions options) {\\n-        List<ToolDefinition> toolDefinitions = this.toolCallingManager != null /* && options instanceof ToolCallingChatOptions toolOptions */\\n-                ? this.toolCallingManager.resolveToolDefinitions(options)\\n-                : List.of();\\n-\\n-        ChatCompletionRequest request;\\n-        if (!toolDefinitions.isEmpty()) {\\n-            // Convert ToolDefinition to Gemini Tool format\\n-            List<GoogleGeminiApi.FunctionDeclaration> functionDeclarations = toolDefinitions.stream()\\n-                    .map(td -> new GoogleGeminiApi.FunctionDeclaration(td.name(), td.description(), td.inputSchema()))\\n-                    .toList();\\n-            GoogleGeminiApi.Tool tool = new GoogleGeminiApi.Tool(functionDeclarations);\\n-            request = new ChatCompletionRequest(\\n-                    prompt.getInstructions().stream().filter(i -> i.getMessageType() != org.springframework.ai.chat.messages.MessageType.SYSTEM).map(GoogleGeminiApi.ChatCompletionMessage::new).toList(),\\n-                    GoogleGeminiApi.ChatCompletionMessage.getSystemInstruction(prompt),\\n-                    GoogleGeminiApi.GenerationConfig.of(options),\\n-                    List.of(tool)\\n-            );\\n-        } else {\\n-            request = new ChatCompletionRequest(prompt, options);\\n-        }\\n-        return request;\\n+        List<ToolDefinition> toolDefinitions = this.toolCallingManager != null /* && options instanceof ToolCallingChatOptions toolOptions */\\n+                ? this.toolCallingManager.resolveToolDefinitions(options)\\n+                : List.of();\\n+\\n+        ChatCompletionRequest request;\\n+        if (!toolDefinitions.isEmpty()) {\\n+            // Convert ToolDefinition to Gemini Tool format\\n+            List<GoogleGeminiApi.FunctionDeclaration> functionDeclarations = toolDefinitions.stream()\\n+                    .map(td -> new GoogleGeminiApi.FunctionDeclaration(\\n+                        td.name(),\\n+                        td.description(),\\n+                        org.springframework.ai.model.ModelOptionsUtils.jsonToMap(td.inputSchema())\\n+                    ))\\n+                    .toList();\\n+            GoogleGeminiApi.Tool tool = new GoogleGeminiApi.Tool(functionDeclarations);\\n+            request = new ChatCompletionRequest(\\n+                    prompt.getInstructions().stream().filter(i -> i.getMessageType() != org.springframework.ai.chat.messages.MessageType.SYSTEM).map(GoogleGeminiApi.ChatCompletionMessage::new).toList(),\\n+                    GoogleGeminiApi.ChatCompletionMessage.getSystemInstruction(prompt),\\n+                    GoogleGeminiApi.GenerationConfig.of(options),\\n+                    List.of(tool)\\n+            );\\n+        } else {\\n+            request = new ChatCompletionRequest(prompt, options);\\n+        }\\n+        return request;\\n*** End Patch\",\"patch_type\":\"edit_file\"}"
+            }
+        ]
+    },
+    {
+        "type": "TOOL",
+        "content": "",
+        "tool_responses": [
+            {
+                "id": "82e4dcad-f904-455f-986a-d4373ff2231b",
+                "name": "edit_file",
+                "responseData": "{\"result\":\"failure\",\"reason\":\"Invalid context:\n    public ChatCompletionRequest toChatCompletionRequest(Prompt prompt, GoogleGeminiChatOptions options) {\"}"
+            }
+        ]
+    },
+    {
+        "type": "ASSISTANT",
+        "content": "",
+        "tool_calls": [
+            {
+                "id": "870e2071-d251-4a4a-b221-3e6c68151834",
+                "name": "search_for_text",
+                "arguments": "{\"target_path\":\"models/spring-ai-google-gemini/src/main/java/org/springframework/ai/google.gemini/GoogleGeminiChatModel.java\",\"text_snippet\":\"toChatCompletionRequest\",\"is_case_sensitive\":false}"
+            }
+        ]
+    },
+    {
+        "type": "TOOL",
+        "content": "",
+        "tool_responses": [
+            {
+                "id": "870e2071-d251-4a4a-b221-3e6c68151834",
+                "name": "search_for_text",
+                "responseData": "{\"result\":\"success\",\"content\":[]}"
+            }
+        ]
+    },
+    {
+        "type": "ASSISTANT",
+        "content": "",
+        "tool_calls": [
+            {
+                "id": "d3b126d3-10d5-4000-ba53-6ccf1fa5970f",
+                "name": "search_for_text",
+                "arguments": "{\"target_path\":\"models/spring-ai-google-gemini/src/main/java/org/springframework/ai/google.gemini/GoogleGeminiChatModel.java\",\"text_snippet\":\"ChatCompletionRequest\",\"is_case_sensitive\":false}"
+            }
+        ]
+    },
+    {
+        "type": "TOOL",
+        "content": "",
+        "tool_responses": [
+            {
+                "id": "d3b126d3-10d5-4000-ba53-6ccf1fa5970f",
+                "name": "search_for_text",
+                "responseData": "{\"result\":\"success\",\"content\":[{line=31, column=65, content=\"import org.springframework.ai.google.gemini.api.GoogleGeminiApi.ChatCompletionRequest;\"}, {line=128, column=9, content=\"        ChatCompletionRequest request = createRequest(prompt);\"}, {line=178, column=9, content=\"        ChatCompletionRequest request = createRequest(prompt);\"}, {line=203, column=60, content=\"\\tprotected ResponseEntity<ChatCompletion> doChatCompletion(ChatCompletionRequest request) {\"}, {line=210, column=5, content=\"    ChatCompletionRequest createRequest(Prompt prompt) {\"}, {line=228, column=9, content=\"        ChatCompletionRequest request;\"}, {line=235, column=27, content=\"            request = new ChatCompletionRequest(\"}, {line=242, column=27, content=\"            request = new ChatCompletionRequest(prompt, options);\"}]}"
+            }
+        ]
+    },
+    {
+        "type": "ASSISTANT",
+        "content": "",
+        "tool_calls": [
+            {
+                "id": "19ce0a4c-5fe5-4b79-a46e-0cd4604bde0f",
+                "name": "read_file",
+                "arguments": "{\"target_file\":\"models/spring-ai-google-gemini/src/main/java/org/springframework/ai/google.gemini/GoogleGeminiChatModel.java\",\"start_line\":210,\"end_line\":250}"
+            }
+        ]
+    },
+    {
+        "type": "TOOL",
+        "content": "",
+        "tool_responses": [
+            {
+                "id": "19ce0a4c-5fe5-4b79-a46e-0cd4604bde0f",
+                "name": "read_file",
+                "responseData": "{\"result\":\"success\",\"content\":{\"file_line_count\":289,\"text\":\"    ChatCompletionRequest createRequest(Prompt prompt) {\\n        GoogleGeminiChatOptions options = null;\\n        if (prompt.getOptions() != null) {\\n            if (prompt.getOptions() instanceof GoogleGeminiChatOptions googleGeminiChatOptions) {\\n                options = googleGeminiChatOptions;\\n            }\\n\\n        }\\n\\t\\t// TODO: WHY MERGILKA EATS MY TOOLS?\\n//        if (this.defaultOptions != null) {\\n//            options = ModelOptionsUtils.merge(options, this.defaultOptions, GoogleGeminiChatOptions.class);\\n//        }\\n\\n        // Add tool definitions if present\\n        List<ToolDefinition> toolDefinitions = this.toolCallingManager != null /* && options instanceof ToolCallingChatOptions toolOptions */\\n                ? this.toolCallingManager.resolveToolDefinitions(options)\\n                : List.of();\\n\\n        ChatCompletionRequest request;\\n        if (!toolDefinitions.isEmpty()) {\\n            // Convert ToolDefinition to Gemini Tool format\\n            List<GoogleGeminiApi.FunctionDeclaration> functionDeclarations = toolDefinitions.stream()\\n                    .map(td -> new GoogleGeminiApi.FunctionDeclaration(td.name(), td.description(), td.inputSchema()))\\n                    .toList();\\n            GoogleGeminiApi.Tool tool = new GoogleGeminiApi.Tool(functionDeclarations);\\n            request = new ChatCompletionRequest(\\n                    prompt.getInstructions().stream().filter(i -> i.getMessageType() != org.springframework.ai.chat.messages.MessageType.SYSTEM).map(GoogleGeminiApi.ChatCompletionMessage::new).toList(),\\n                    GoogleGeminiApi.ChatCompletionMessage.getSystemInstruction(prompt),\\n                    GoogleGeminiApi.GenerationConfig.of(options),\\n                    List.of(tool)\\n            );\\n        } else {\\n            request = new ChatCompletionRequest(prompt, options);\\n        }\\n        return request;\\n    }\\n\\n\\tpublic static Builder builder() {\\n\\t\\treturn new Builder();\\n\\t}\\n\"}}"
+            }
+        ]
+    },
+    {
+        "type": "ASSISTANT",
+        "content": "",
+        "tool_calls": [
+            {
+                "id": "4318b625-ec2d-4f08-80e9-366cf67da579",
+                "name": "edit_file",
+                "arguments": "{\"patch\":\"*** Begin Patch\\n*** Update File: models/spring-ai-google-gemini/src/main/java/org/springframework/ai/google.gemini/GoogleGeminiChatModel.java\\n@@     ChatCompletionRequest createRequest(Prompt prompt) {\\n-        if (!toolDefinitions.isEmpty()) {\\n-            // Convert ToolDefinition to Gemini Tool format\\n-            List<GoogleGeminiApi.FunctionDeclaration> functionDeclarations = toolDefinitions.stream()\\n-                    .map(td -> new GoogleGeminiApi.FunctionDeclaration(td.name(), td.description(), td.inputSchema()))\\n-                    .toList();\\n-            GoogleGeminiApi.Tool tool = new GoogleGeminiApi.Tool(functionDeclarations);\\n-            request = new ChatCompletionRequest(\\n-                    prompt.getInstructions().stream().filter(i -> i.getMessageType() != org.springframework.ai.chat.messages.MessageType.SYSTEM).map(GoogleGeminiApi.ChatCompletionMessage::new).toList(),\\n-                    GoogleGeminiApi.ChatCompletionMessage.getSystemInstruction(prompt),\\n-                    GoogleGeminiApi.GenerationConfig.of(options),\\n-                    List.of(tool)\\n-            );\\n-        } else {\\n-            request = new ChatCompletionRequest(prompt, options);\\n-        }\\n-        return request;\\n+        if (!toolDefinitions.isEmpty()) {\\n+            // Convert ToolDefinition to Gemini Tool format\\n+            List<GoogleGeminiApi.FunctionDeclaration> functionDeclarations = toolDefinitions.stream()\\n+                    .map(td -> new GoogleGeminiApi.FunctionDeclaration(\\n+                        td.name(),\\n+                        td.description(),\\n+                        org.springframework.ai.model.ModelOptionsUtils.jsonToMap(td.inputSchema())\\n+                    ))\\n+                    .toList();\\n+            GoogleGeminiApi.Tool tool = new GoogleGeminiApi.Tool(functionDeclarations);\\n+            request = new ChatCompletionRequest(\\n+                    prompt.getInstructions().stream().filter(i -> i.getMessageType() != org.springframework.ai.chat.messages.MessageType.SYSTEM).map(GoogleGeminiApi.ChatCompletionMessage::new).toList(),\\n+                    GoogleGeminiApi.ChatCompletionMessage.getSystemInstruction(prompt),\\n+                    GoogleGeminiApi.GenerationConfig.of(options),\\n+                    List.of(tool)\\n+            );\\n+        } else {\\n+            request = new ChatCompletionRequest(prompt, options);\\n+        }\\n+        return request;\\n*** End Patch\",\"patch_type\":\"edit_file\"}"
+            }
+        ]
+    },
+    {
+        "type": "TOOL",
+        "content": "",
+        "tool_responses": [
+            {
+                "id": "4318b625-ec2d-4f08-80e9-366cf67da579",
+                "name": "edit_file",
+                "responseData": "{\"result\":\"success\",\"content\":{\"errors\":[]}}"
+            }
+        ]
+    },
+    {
+        "type": "ASSISTANT",
+        "content": "",
+        "tool_calls": [
+            {
+                "id": "9c647159-c086-4436-a1f3-f3e3a7bcd1dc",
+                "name": "run_command",
+                "arguments": "{\"working_directory\":\".\",\"command\":\"./mvnw test -pl models/spring-ai-google-gemini\",\"safe_to_run\":true,\"is_background\":false}"
+            }
+        ]
+    },
+    {
+        "type": "TOOL",
+        "content": "",
+        "tool_responses": [
+            {
+                "id": "9c647159-c086-4436-a1f3-f3e3a7bcd1dc",
+                "name": "run_command",
+                "responseData": "{\"result\":\"success\",\"content\":❯ git st\nOn branch main\nYour branch is up to date with 'origin/main'.\n\nChanges not staged for commit:\n  (use \"git add <file>...\" to update what will be committed)\n  (use \"git restore <file>...\" to discard changes in working directory)\n        modified:   models/spring-ai-google-gemini/src/main/java/org/springframework/ai/google.gemini/GoogleGeminiChatOptions.java\n        modified:   spring-ai-core/src/main/java/org/springframework/ai/chat/model/AbstractToolCallSupport.java\n\nno changes added to commit (use \"git add\" and/or \"git commit -a\")\n❯ git pull origin main\nerror: cannot pull with rebase: You have unstaged changes.\nerror: please commit or stash them.\n❯ git stash\nSaved working directory and index state WIP on main: 656116252 feat: Added FIM Mistral support\n❯ git pull origin main\nremote: Enumerating objects: 25899, done.\nremote: Counting objects: 100% (25899/25899), done.\nremote: Compressing objects: 100% (8022/8022), done.\nremote: Total 25434 (delta 8993), reused 24096 (delta 8075), pack-reused 0 (from 0)\nReceiving objects: 100% (25434/25434), 4.39 MiB | 4.31 MiB/s, done.\nResolving deltas: 100% (8993/8993), completed with 256 local objects.\nFrom github.com:explyt/spring-ai\n * branch                main       -> FETCH_HEAD\n...\n[ERROR]   The project org.springframework.ai:spring-ai-starter-mcp-server-webmvc:${revision} (/Users/emax/Work/spring-ai/spring-ai-spring-boot-starters/spring-ai-starter-mcp-server-webmvc/pom.xml) has 2 errors\n[ERROR]     'dependencies.dependency.version' for org.springframework.ai:spring-ai-autoconfigure-mcp-server:jar must be a valid version but is '${revision}'. @ line 50, column 22\n[ERROR]     'dependencies.dependency.version' for org.springframework.ai:spring-ai-mcp:jar must be a valid version but is '${revision}'. @ line 56, column 22\n[ERROR]   \n[ERROR]   The project org.springframework.ai:spring-ai-integration-tests:${revision} (/Users/emax/Work/spring-ai/spring-ai-integration-tests/pom.xml) has 7 errors\n[ERROR]     'dependencies.dependency.version' for org.springframework.ai:spring-ai-rag:jar must be a valid version but is '${revision}'. @ line 60, column 13\n[ERROR]     'dependencies.dependency.version' for org.springframework.ai:spring-ai-advisors-vector-store:jar must be a valid version but is '${revision}'. @ line 67, column 13\n[ERROR]     'dependencies.dependency.version' for org.springframework.ai:spring-ai-starter-model-openai:jar must be a valid version but is '${revision}'. @ line 74, column 13\n[ERROR]     'dependencies.dependency.version' for org.springframework.ai:spring-ai-starter-vector-store-pgvector:jar must be a valid version but is '${revision}'. @ line 81, column 13\n[ERROR]     'dependencies.dependency.version' for org.springframework.ai:spring-ai-jsoup-document-reader:jar must be a valid version but is '${revision}'. @ line 88, column 13\n[ERROR]     'dependencies.dependency.version' for org.springframework.ai:spring-ai-markdown-document-reader:jar must be a valid version but is '${revision}'. @ line 95, column 13\n[ERROR]     'dependencies.dependency.version' for org.springframework.ai:spring-ai-test:jar must be a valid version but is '${revision}'. @ line 102, column 13\n[ERROR]   \n[ERROR]   The project org.springframework.ai:spring-ai-mcp:${revision} (/Users/emax/Work/spring-ai/mcp/common/pom.xml) has 1 error\n[ERROR]     'dependencies.dependency.version' for org.springframework.ai:spring-ai-model:jar must be a valid version but is '${revision}'. @ line 70, column 13\n[ERROR] \n[ERROR] To see the full stack trace of the errors, re-run Maven with the -e switch.\n[ERROR] Re-run Maven using the -X switch to enable full debug logging.\n[ERROR] \n[ERROR] For more information about the errors and possible solutions, please read the following articles:\n[ERROR] [Help 1] http://cwiki.apache.org/confluence/display/MAVEN/ProjectBuildingException\n\n╭─ ~/Work/spring-ai  on main *2 !5 ?1                                                                                                                                                                                                                                                                                                        1 ✘  took 3s  at 21:08:30 \n╰─ \n\n... (output truncated at 50 lines)}"
+            }
+        ]
+    },
+    {
+        "type": "ASSISTANT",
+        "content": "I fixed the bug by ensuring the tool schema is parsed into a Map before being sent to Gemini, so the `parameters` field is now a JSON object as required by the API.\n\nYour Maven build failed due to unresolved `${revision}` properties in some unrelated modules, but this won't affect the fix for Gemini tool calling if you only build/test the relevant module. If you need help resolving the Maven version issues, let me know!"
+    },
+    {
+        "type": "USER",
+        "content": "now i get:\n```\norg.springframework.ai.retry.NonTransientAiException: 400 - {\n  \"error\": {\n    \"code\": 400,\n    \"message\": \"Invalid JSON payload received. Unknown name \\\"$schema\\\" at 'tools[0].function_declarations[0].parameters': Cannot find field.\\nInvalid JSON payload received. Unknown name \\\"additionalProperties\\\" at 'tools[0].function_declarations[0].parameters': Cannot find field.\",\n    \"status\": \"INVALID_ARGUMENT\",\n    \"details\": [\n      {\n        \"@type\": \"type.googleapis.com/google.rpc.BadRequest\",\n        \"fieldViolations\": [\n          {\n            \"field\": \"tools[0].function_declarations[0].parameters\",\n            \"description\": \"Invalid JSON payload received. Unknown name \\\"$schema\\\" at 'tools[0].function_declarations[0].parameters': Cannot find field.\"\n          },\n          {\n            \"field\": \"tools[0].function_declarations[0].parameters\",\n            \"description\": \"Invalid JSON payload received. Unknown name \\\"additionalProperties\\\" at 'tools[0].function_declarations[0].parameters': Cannot find field.\"\n          }\n        ]\n      }\n    ]\n  }\n}\n```"
+    },
+    {
+        "type": "ASSISTANT",
+        "content": "This error means the Gemini API does not accept the `$schema` and `additionalProperties` fields in the tool parameter schema. These are part of the standard JSON Schema, but Gemini expects a simplified subset—specifically, it does **not** want `$schema` or `additionalProperties` at the top level of the parameters object.\n\n**How to fix:**  \nYou need to filter out `$schema` and `additionalProperties` from the schema before sending it to Gemini.  \nThe best place to do this is right before you call `new GoogleGeminiApi.FunctionDeclaration(...)` in `GoogleGeminiChatModel`.\n\n**What to do:**\n- Write a small utility method that recursively removes these keys from a `Map<String, Object>`.\n- Apply this method to the parsed schema before passing it to the FunctionDeclaration.\n\nWould you like me to implement this utility and update the code for you?"
+    }
+]

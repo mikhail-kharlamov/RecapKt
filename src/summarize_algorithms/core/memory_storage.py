@@ -1,11 +1,11 @@
 import math
-
+import os
 from dataclasses import dataclass
 from typing import Iterable, Optional
 
 import faiss
 import numpy as np
-
+from dotenv import load_dotenv
 from langchain_core.embeddings import Embeddings
 from langchain_openai import OpenAIEmbeddings
 
@@ -25,9 +25,13 @@ class MemoryStorage:
         embeddings: Optional[Embeddings] = None,
         max_session_id: int = 3,
     ) -> None:
+        load_dotenv()
+
         self.memory_list: list[MemoryFragment] = []
         self.embeddings = embeddings or OpenAIEmbeddings(
-            model="text-embedding-3-small", chunk_size=100
+            model="text-embedding-3-small",
+            chunk_size=100,
+            api_key=os.getenv("OPENAI_API_KEY")
         )
         self.max_session_id = max_session_id
         self.index = None
@@ -112,3 +116,23 @@ class MemoryStorage:
             for fragment in self.memory_list
             if fragment.session_id == session_id
         ]
+
+    def __dict__(self) -> dict:
+        return {
+            "memory_list": [
+                {
+                    "embed_content": fragment.embed_content,
+                    "content": fragment.content,
+                    "session_id": fragment.session_id,
+                }
+                for fragment in self.memory_list
+            ],
+            "max_session_id": self.max_session_id,
+            "memory_count": len(self.memory_list),
+            "is_initialized": self._is_initialized,
+            "index_info": {
+                "ntotal": int(self.index.ntotal),
+                "dimension": int(self.index.d),
+            } if self.index is not None else None,
+            "embeddings_model": getattr(self.embeddings, "model", str(type(self.embeddings))),
+        }

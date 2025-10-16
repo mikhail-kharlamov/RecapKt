@@ -1,0 +1,366 @@
+[
+  {
+    "type": "USER",
+    "content": "<CONTEXT>\n<CLASS>\n/*\n * Copyright 2023 - 2024 the original author or authors.\n *\n * Licensed under the Apache License, Version 2.0 (the \"License\");\n * you may not use this file except in compliance with the License.\n * You may obtain a copy of the License at\n *\n * https://www.apache.org/licenses/LICENSE-2.0\n *\n * Unless required by applicable law or agreed to in writing, software\n * distributed under the License is distributed on an \"AS IS\" BASIS,\n * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.\n * See the License for the specific language governing permissions and\n * limitations under the License.\n */\npackage org.springframework.ai.google.gemini.api;\n\nimport com.fasterxml.jackson.annotation.JsonInclude;\nimport com.fasterxml.jackson.annotation.JsonInclude.Include;\nimport com.fasterxml.jackson.annotation.JsonProperty;\nimport io.micrometer.context.Nullable;\nimport org.springframework.ai.chat.messages.Message;\nimport org.springframework.ai.chat.messages.MessageType;\nimport org.springframework.ai.chat.prompt.Prompt;\nimport org.springframework.ai.google.gemini.GoogleGeminiChatOptions;\nimport org.springframework.ai.google.gemini.ResponseSchema;\nimport org.springframework.ai.model.ModelDescription;\nimport org.springframework.ai.model.ModelOptionsUtils;\nimport org.springframework.ai.retry.RetryUtils;\nimport org.springframework.http.HttpHeaders;\nimport org.springframework.http.MediaType;\nimport org.springframework.http.ResponseEntity;\nimport org.springframework.util.Assert;\nimport org.springframework.web.client.ResponseErrorHandler;\nimport org.springframework.web.client.RestClient;\nimport org.springframework.web.reactive.function.client.WebClient;\nimport reactor.core.publisher.Flux;\nimport reactor.core.publisher.Mono;\n\nimport java.util.List;\nimport java.util.Map;\nimport java.util.function.Consumer;\nimport java.util.function.Predicate;\n\nimport static org.springframework.ai.google.gemini.api.GoogleGeminiApiConstants.DEFAULT_BASE_URL;\n\n/**\n * Single class implementation of the Google Gemini Chat Completion API:\n * <a href=\"https://ai.google.dev/gemini-api/docs/text-generation?lang=rest\">Docs</a>\n */\npublic class GoogleGeminiApi {\n\n\tpublic static final String DEFAULT_CHAT_MODEL = ChatModel.GEMINI_1_5_FLASH.value;\n\n\tprivate static final Predicate<String> SSE_DONE_PREDICATE = \"[DONE]\"::equals;\n\n\tprivate final RestClient restClient;\n\n\tprivate final WebClient webClient;\n\n\tprivate final String chatModel;\n\n\tprivate final String apiKey;\n\n\t/**\n\t * Create a new chat completion api with default base URL\n\t * @param apiKey Google Gemini apiKey.\n\t */\n\tpublic GoogleGeminiApi(String apiKey) {\n\t\tthis(DEFAULT_BASE_URL, DEFAULT_CHAT_MODEL, apiKey);\n\t}\n\n\t/**\n\t * Create a new chat completion api with default base URL\n\t * @param apiKey Google Gemini apiKey.\n\t */\n\tpublic GoogleGeminiApi(String chatModel, String apiKey) {\n\t\tthis(DEFAULT_BASE_URL, chatModel, apiKey);\n\t}\n\n\t/**\n\t * Create a new chat completion api.\n\t * @param baseUrl api base URL.\n\t * @param apiKey Google Gemini apiKey.\n\t */\n\tpublic GoogleGeminiApi(String baseUrl, String chatModel, String apiKey) {\n\t\tthis(baseUrl, chatModel, apiKey, RestClient.builder(), WebClient.builder());\n\t}\n\n\t/**\n\t * Create a new chat completion api.\n\t * @param baseUrl api base URL.\n\t * @param apiKey Google Gemini apiKey.\n\t * @param restClientBuilder RestClient builder.\n\t */\n\tpublic GoogleGeminiApi(String baseUrl, String chatModel, String apiKey, RestClient.Builder restClientBuilder,\n\t\t\tWebClient.Builder webClientBuilder) {\n\t\tthis(baseUrl, chatModel, apiKey, restClientBuilder, webClientBuilder,\n\t\t\t\tRetryUtils.DEFAULT_RESPONSE_ERROR_HANDLER);\n\t}\n\n\t/**\n\t * Create a new chat completion api.\n\t * @param baseUrl api base URL.\n\t * @param apiKey Google Gemini apiKey.\n\t * @param restClientBuilder RestClient builder.\n\t * @param responseErrorHandler Response error handler.\n\t */\n\tpublic GoogleGeminiApi(String baseUrl, String chatModel, String apiKey, RestClient.Builder restClientBuilder,\n\t\t\tWebClient.Builder webClientBuilder, ResponseErrorHandler responseErrorHandler) {\n\n\t\tthis.chatModel = chatModel;\n\n\t\tthis.apiKey = apiKey;\n\n\t\tConsumer<HttpHeaders> jsonContentHeaders = headers -> {\n\t\t\theaders.setContentType(MediaType.APPLICATION_JSON);\n\t\t};\n\n\t\tthis.restClient = restClientBuilder.baseUrl(baseUrl)\n\t\t\t.defaultHeaders(jsonContentHeaders)\n\t\t\t.defaultStatusHandler(responseErrorHandler)\n\t\t\t.build();\n\n\t\tthis.webClient = webClientBuilder.baseUrl(baseUrl).defaultHeaders(jsonContentHeaders).build();\n\t}\n\n\t/**\n\t * Google Gemini Chat Completion\n\t * <a href=\"https://ai.google.dev/gemini-api/docs/models\">Models</a>\n\t */\n\tpublic enum ChatModel implements ModelDescription {\n\n\t\tGEMINI_1_5_FLASH(\"gemini-1.5-flash\"), GEMINI_1_5_PRO(\"gemini-1.5-pro\"), GEMINI_1_0_PRO(\"gemini-1.0-pro\"),\n\t\tGEMINI_2_5_FLASH_LITE(\"gemini-2.5-flash-lite\"), GEMINI_2_5_FLASH(\"gemini-2.5-flash\"),\n\t\tGEMINI_2_5_PRO(\"gemini-2.5-pro\");\n\n\t\tpublic final String value;\n\n\t\tChatModel(String value) {\n\t\t\tthis.value = value;\n\t\t}\n\n\t\tpublic String getValue() {\n\t\t\treturn value;\n\t\t}\n\n\t\t@Override\n\t\tpublic String getName() {\n\t\t\treturn value;\n\t\t}\n\n\t}\n\n\t@JsonInclude(Include.NON_NULL)\n\tpublic record Part(@JsonProperty(\"thought\") Boolean thought,\n\t\t\t@JsonProperty(\"thoughtSignature\") String thoughtSignature, @JsonProperty(\"text\") String text,\n\t\t\t@JsonProperty(\"inlineData\") String inlineData, @JsonProperty(\"functionCall\") FunctionCall functionCall,\n\t\t\t@JsonProperty(\"functionResponse\") FunctionResponse functionResponse) {\n\n\t\t// Enforce union type: only one of the union fields can be non-null\n\t\tpublic Part(Boolean thought, String thoughtSignature, String text, String inlineData, FunctionCall functionCall,\n\t\t\t\tFunctionResponse functionResponse) {\n\t\t\tvalidateUnion(text, inlineData, functionCall, functionResponse);\n\t\t\tthis.thought = thought;\n\t\t\tthis.thoughtSignature = thoughtSignature;\n\t\t\tthis.text = text;\n\t\t\tthis.inlineData = inlineData;\n\t\t\tthis.functionCall = functionCall;\n\t\t\tthis.functionResponse = functionResponse;\n\t\t}\n\n\t\tprivate static void validateUnion(Object text, Object inlineData, Object functionCall,\n\t\t\t\tObject functionResponse) {\n\t\t\tint count = 0;\n\t\t\tif (text != null)\n\t\t\t\tcount++;\n\t\t\tif (inlineData != null)\n\t\t\t\tcount++;\n\t\t\tif (functionCall != null)\n\t\t\t\tcount++;\n\t\t\tif (functionResponse != null)\n\t\t\t\tcount++;\n\t\t\tif (count > 1) {\n\t\t\t\tthrow new IllegalArgumentException(\n\t\t\t\t\t\t\"Part union type violation: only one of text, inlineData, functionCall, functionResponse, fileData, executableCode, codeExecutionResult can be non-null\");\n\t\t\t}\n\t\t}\n\n\t\tpublic Part(String text) {\n\t\t\tthis(false, null, text, null, null, null);\n\t\t}\n\n\t\tpublic Part(FunctionCall functionCall) {\n\t\t\tthis(false, null, null, null, functionCall, null);\n\t\t}\n\n\t\tpublic Part(FunctionResponse functionResponse) {\n\t\t\tthis(false, null, null, null, null, functionResponse);\n\t\t}\n\n\t\t@JsonInclude(Include.NON_NULL)\n\t\tpublic record FunctionCall(@JsonProperty(\"id\") String id, @JsonProperty(\"name\") String name,\n\t\t\t\t@JsonProperty(\"args\") Map<String, Object> args) {\n\t\t\tpublic FunctionCall(String id, String name, Map<String, Object> args) {\n\t\t\t\tthis.id = id == null ? \"explyt\" + java.util.UUID.randomUUID() : id;\n\t\t\t\tthis.name = name;\n\t\t\t\tthis.args = args;\n\t\t\t}\n\n\t\t\t@com.fasterxml.jackson.annotation.JsonCreator\n\t\t\tpublic static FunctionCall create(@com.fasterxml.jackson.annotation.JsonProperty(\"id\") String id,\n\t\t\t\t\t@com.fasterxml.jackson.annotation.JsonProperty(\"name\") String name,\n\t\t\t\t\t@com.fasterxml.jackson.annotation.JsonProperty(\"args\") Map<String, Object> args) {\n\t\t\t\treturn new FunctionCall(id, name, args);\n\t\t\t}\n\t\t}\n\n\t\t// https://ai.google.dev/api/caching#FunctionResponse\n\t\t@JsonInclude(Include.NON_NULL)\n\t\tpublic static record FunctionResponse(@JsonProperty(\"id\") String id, @JsonProperty(\"name\") String name,\n\t\t\t\t@JsonProperty(\"response\") Map<String, Object> response,\n\t\t\t\t@JsonProperty(\"willContinue\") Boolean willContinue, @JsonProperty(\"scheduling\") Scheduling scheduling) {\n\n\t\t\tpublic FunctionResponse(String id, String name, Map<String, Object> response) {\n\t\t\t\tthis(id, name, response, false, Scheduling.SCHEDULING_UNSPECIFIED);\n\t\t\t}\n\t\t}\n\n\t\tpublic enum Scheduling {\n\n\t\t\tSCHEDULING_UNSPECIFIED, SILENT, WHEN_IDLE, INTERRUPT\n\n\t\t}\n\t}\n\n\t@JsonInclude(Include.NON_NULL)\n\tpublic record ChatCompletionMessage(@JsonProperty(\"role\") Role role, @JsonProperty(\"parts\") List<Part> parts) {\n\n\t\tpublic ChatCompletionMessage(Message instruction) {\n\t\t\tthis(Role.of(instruction.getMessageType()), List.of(new Part(instruction.getText())));\n\t\t}\n\n\t\tpublic ChatCompletionMessage(Role role, String content) {\n\t\t\tthis(role, List.of(new Part(content)));\n\t\t}\n\n\t\tpublic ChatCompletionMessage(String content) {\n\t\t\tthis(null, content);\n\t\t}\n\n\t\tpublic static ChatCompletionMessage getSystemInstruction(Prompt prompt) {\n\t\t\treturn prompt.getInstructions()\n\t\t\t\t.stream()\n\t\t\t\t.filter(instruction -> instruction.getMessageType() == MessageType.SYSTEM)\n\t\t\t\t.map(instruction -> new ChatCompletionMessage(instruction.getText()))\n\t\t\t\t.findFirst()\n\t\t\t\t.orElse(null);\n\t\t}\n\n\t\t/**\n\t\t * The role of the author of this message.\n\t\t */\n\t\tpublic enum Role {\n\n\t\t\t/**\n\t\t\t * User message.\n\t\t\t */\n\t\t\t@JsonProperty(\"user\")\n\t\t\tUSER,\n\t\t\t/**\n\t\t\t * Assistant message.\n\t\t\t */\n\t\t\t@JsonProperty(\"model\")\n\t\t\tASSISTANT,\n\t\t\t/**\n\t\t\t * Tool message.\n\t\t\t */\n\t\t\t@JsonProperty(\"tool\")\n\t\t\tTOOL;\n\n\t\t\tpublic static Role of(MessageType messageType) {\n\t\t\t\tif (messageType == MessageType.USER) {\n\t\t\t\t\treturn USER;\n\t\t\t\t}\n\t\t\t\telse if (messageType == MessageType.ASSISTANT) {\n\t\t\t\t\treturn ASSISTANT;\n\t\t\t\t}\n\t\t\t\telse if (messageType == MessageType.TOOL) {\n\t\t\t\t\treturn TOOL;\n\t\t\t\t}\n\t\t\t\telse {\n\t\t\t\t\tthrow new IllegalArgumentException(\"Only USER and ASSISTANT roles are allowed.\");\n\t\t\t\t}\n\t\t\t}\n\n\t\t}\n\t}\n\n\t@JsonInclude(Include.NON_NULL)\n\tpublic record ThinkingConfig(@JsonProperty(\"thinkingBudget\") Integer thinkingBudget,\n\t\t\t@JsonProperty(\"includeThoughts\") Boolean includeThoughts) {\n\t}\n\n\t/**\n\t * <a href=\n\t * \"https://ai.google.dev/api/generate-content#v1beta.GenerationConfig\">Docs</a>\n\t */\n\t@JsonInclude(Include.NON_NULL)\n\tpublic record GenerationConfig(@JsonProperty(\"temperature\") Double temperature,\n\t\t\t@JsonProperty(\"maxOutputTokens\") Integer maxOutputTokens,\n\t\t\t@JsonProperty(\"thinkingConfig\") ThinkingConfig thinkingConfig,\n\t\t\t@JsonProperty(\"responseSchema\") ResponseSchema responseSchema,\n\t\t\t@JsonProperty(\"responseMimeType\") String responseMimeType) {\n\t\tprivate GenerationConfig(GoogleGeminiChatOptions options) {\n\t\t\tthis(options.getTemperature(), options.getMaxTokens(),\n\t\t\t\t\toptions.getThinkingBudget() == null ? null : new ThinkingConfig(options.getThinkingBudget(), false),\n\t\t\t\t\toptions.getResponseSchema(), options.getResponseSchema() == null ? null : \"application/json\");\n\t\t}\n\n\t\tpublic static GenerationConfig of(GoogleGeminiChatOptions options) {\n\t\t\treturn new GenerationConfig(options);\n\t\t}\n\t}\n\n\t/**\n\t * Creates a model response for the given chat conversation.\n\t */\n\t@JsonInclude(Include.NON_NULL)\n\tpublic record ChatCompletionRequest(@JsonProperty(\"contents\") List<ChatCompletionMessage> contents,\n\t\t\t@JsonProperty(\"systemInstruction\") ChatCompletionMessage systemInstruction,\n\t\t\t@JsonProperty(\"generationConfig\") GenerationConfig generationConfig,\n\t\t\t@Nullable @JsonProperty(\"tools\") List<Tool> tools) {\n\t\tpublic ChatCompletionRequest(Prompt prompt, GoogleGeminiChatOptions options) {\n\t\t\tthis(prompt.getInstructions()\n\t\t\t\t.stream()\n\t\t\t\t.filter(instruction -> instruction.getMessageType() != MessageType.SYSTEM)\n\t\t\t\t.map(ChatCompletionMessage::new)\n\t\t\t\t.toList(), ChatCompletionMessage.getSystemInstruction(prompt), GenerationConfig.of(options), null);\n\t\t\tAssert.isTrue(prompt.getInstructions()\n\t\t\t\t.stream()\n\t\t\t\t.filter(instruction -> instruction.getMessageType() == MessageType.SYSTEM)\n\t\t\t\t.count() <= 1, \"Only one system message is allowed in the prompt.\");\n\t\t}\n\t}\n\n\t/**\n\t * Represents a tool for function calling, following Gemini's schema.\n\t */\n\t@JsonInclude(Include.NON_NULL)\n\tpublic static class Tool {\n\n\t\t@JsonProperty(\"functionDeclarations\")\n\t\tprivate List<FunctionDeclaration> functionDeclarations;\n\n\t\tpublic Tool() {\n\t\t}\n\n\t\tpublic Tool(List<FunctionDeclaration> functionDeclarations) {\n\t\t\tthis.functionDeclarations = functionDeclarations;\n\t\t}\n\n\t\tpublic List<FunctionDeclaration> getFunctionDeclarations() {\n\t\t\treturn functionDeclarations;\n\t\t}\n\n\t\tpublic void setFunctionDeclarations(List<FunctionDeclaration> functionDeclarations) {\n\t\t\tthis.functionDeclarations = functionDeclarations;\n\t\t}\n\n\t}\n\n\t/**\n\t * Represents a function declaration for Gemini function calling. Follows OpenAPI\n\t * schema subset as required by Gemini.\n\t */\n\t// https://ai.google.dev/api/caching#FunctionDeclaration\n\t@JsonInclude(Include.NON_NULL)\n\tpublic static class FunctionDeclaration {\n\n\t\t@JsonProperty(\"name\")\n\t\tprivate String name;\n\n\t\t@JsonProperty(\"description\")\n\t\tprivate String description;\n\n\t\t// https://ai.google.dev/api/caching#:~:text=parametersJsonSchema\n\t\t@JsonProperty(\"parametersJsonSchema\")\n\t\tprivate Object parameters;\n\n\t\tpublic FunctionDeclaration() {\n\t\t}\n\n\t\tpublic FunctionDeclaration(String name, String description, Map<String, Object> parameters) {\n\t\t\tthis.name = name;\n\t\t\tthis.description = description;\n\t\t\tthis.parameters = parameters;\n\t\t}\n\n\t\tpublic String getName() {\n\t\t\treturn name;\n\t\t}\n\n\t\tpublic void setName(String name) {\n\t\t\tthis.name = name;\n\t\t}\n\n\t\tpublic String getDescription() {\n\t\t\treturn description;\n\t\t}\n\n\t\tpublic void setDescription(String description) {\n\t\t\tthis.description = description;\n\t\t}\n\n\t\tpublic Object getParameters() {\n\t\t\treturn parameters;\n\t\t}\n\n\t\tpublic void setParameters(Object parameters) {\n\t\t\tthis.parameters = parameters;\n\t\t}\n\n\t}\n\n\t// https://ai.google.dev/api/generate-content#candidate\n\t@JsonInclude(Include.NON_NULL)\n\tpublic record Candidate(@JsonProperty(\"content\") ChatCompletionMessage content,\n\t\t\t@JsonProperty(\"finishReason\") FinishReason finishReason,\n\t\t\t@JsonProperty(\"safetyRatings\") List<SafetyRating> safetyRatings,\n\t\t\t@JsonProperty(\"tokenCount\") Integer tokenCount) {\n\t\tpublic Candidate(ChatCompletionMessage content) {\n\t\t\tthis(content, null, null, null);\n\t\t}\n\t}\n\n\tpublic enum FinishReason {\n\n\t\tFINISH_REASON_UNSPECIFIED, STOP, MAX_TOKENS, SAFETY, RECITATION, LANGUAGE, OTHER, BLOCKLIST, PROHIBITED_CONTENT,\n\t\tSPII, MALFORMED_FUNCTION_CALL, IMAGE_SAFETY, UNEXPECTED_TOOL_CALL\n\n\t}\n\n\t@JsonInclude(Include.NON_NULL)\n\tpublic record SafetyRating(@JsonProperty(\"category\") String category,\n\t\t\t@JsonProperty(\"probability\") String probability, @JsonProperty(\"blocked\") Boolean blocked) {\n\t}\n\n\t@JsonInclude(Include.NON_NULL)\n\tpublic record PromptFeedback(@JsonProperty(\"blockReason\") String blockReason,\n\t\t\t@JsonProperty(\"safetyRatings\") List<SafetyRating> safetyRatings) {\n\t}\n\n\t/**\n\t * Represents a chat completion response returned by model, based on the provided\n\t * input.\n\t *\n\t * @param choices A list of chat completion choices. Can be more than one if n is\n\t * greater than 1.\n\t * @param usage Usage statistics for the completion request.\n\t */\n\t@JsonInclude(Include.NON_NULL)\n\tpublic record ChatCompletion(@JsonProperty(\"candidates\") List<Candidate> choices,\n\t\t\t@JsonProperty(\"promptFeedback\") PromptFeedback promptFeedback, @JsonProperty(\"usageMetadata\") Usage usage) {\n\t}\n\n\t/**\n\t * Usage statistics for the completion request.\n\t */\n\t@JsonInclude(Include.NON_NULL)\n\tpublic record Usage(@JsonProperty(\"promptTokenCount\") Integer promptTokenCount,\n\t\t\t@JsonProperty(\"cachedContentTokenCount\") Integer cachedContentTokenCount,\n\t\t\t@JsonProperty(\"candidatesTokenCount\") Integer candidatesTokenCount,\n\t\t\t@JsonProperty(\"toolUsePromptTokenCount\") Integer toolUsePromptTokenCount,\n\t\t\t@JsonProperty(\"thoughtsTokenCount\") Integer thoughtsTokenCount,\n\t\t\t@JsonProperty(\"totalTokenCount\") Integer totalTokenCount) {\n\n\t}\n\n\tprivate String getCompletionUrl(boolean stream) {\n\t\treturn \"/models/\" + chatModel + (stream ? \":streamGenerateContent?alt=sse&\" : \":generateContent?\") + \"key=\"\n\t\t\t\t+ apiKey;\n\t}\n\n\t/**\n\t * Creates a model response for the given chat conversation. <a href=\n\t * \"https://ai.google.dev/api/generate-content#v1beta.models.generateContent\">Docs</a>\n\t * @param chatRequest The chat completion request.\n\t * @return Entity response with {@link ChatCompletion} as a body and HTTP status code\n\t * and headers.\n\t */\n\tpublic ResponseEntity<ChatCompletion> chatCompletionEntity(ChatCompletionRequest chatRequest) {\n\n\t\tAssert.notNull(chatRequest, \"The request body can not be null.\");\n\n\t\treturn this.restClient.post()\n\t\t\t.uri(getCompletionUrl(false))\n\t\t\t.body(chatRequest)\n\t\t\t.retrieve()\n\t\t\t.toEntity(ChatCompletion.class);\n\t}\n\n\t/**\n\t * Creates a streaming chat response for the given chat conversation. <a href=\n\t * \"https://ai.google.dev/api/generate-content#method:-models.streamgeneratecontent\">Docs</a>\n\t * @param chatRequest The chat completion request. Must have the stream property set\n\t * to true.\n\t * @return Returns a {@link Flux} stream from chat completion chunks.\n\t */\n\tpublic Flux<ChatCompletion> chatCompletionStream(ChatCompletionRequest chatRequest) {\n\t\tAssert.notNull(chatRequest, \"The request body can not be null.\");\n\n\t\treturn this.webClient.post()\n\t\t\t.uri(getCompletionUrl(true))\n\t\t\t.body(Mono.just(chatRequest), ChatCompletionRequest.class)\n\t\t\t.retrieve()\n\t\t\t.bodyToFlux(String.class)\n\t\t\t// cancels the flux stream after the \"[DONE]\" is received.\n\t\t\t.takeUntil(SSE_DONE_PREDICATE)\n\t\t\t// filters out the \"[DONE]\" message.\n\t\t\t.filter(SSE_DONE_PREDICATE.negate())\n\t\t\t.map(content -> ModelOptionsUtils.jsonToObject(content, ChatCompletion.class));\n\t}\n\n}\n</CLASS>\n</CONTEXT>\n\n\nwhy when deserializing Part in the lib that uses this one (after obfuscation):\n```\n\t@JsonInclude(Include.NON_NULL)\n\tpublic record Part(@JsonProperty(\"thought\") Boolean thought,\n\t\t\t@JsonProperty(\"thoughtSignature\") String thoughtSignature, @JsonProperty(\"text\") String text,\n\t\t\t@JsonProperty(\"inlineData\") String inlineData, @JsonProperty(\"functionCall\") FunctionCall functionCall,\n\t\t\t@JsonProperty(\"functionResponse\") FunctionResponse functionResponse) {\n```\nI get this error?\n```\nCaused by: com.fasterxml.jackson.databind.exc.MismatchedInputException: Cannot construct instance of `org.springframework.ai.google.gemini.api.GoogleGeminiApi$Part` (although at least one Creator exists): cannot deserialize from Object value (no delegate- or property-based Creator)\n```\n\n"
+  },
+  {
+    "type": "ASSISTANT",
+    "content": "Jackson can’t find a constructor to bind your JSON into because you’ve provided an explicit canonical (all-args) constructor on the record without annotating it as a Jackson creator—and as soon as you define that constructor, Jackson no longer treats it as the “default” record constructor. On top of that, your obfuscation has stripped out the real parameter names so Jackson can’t match JSON properties to constructor args.\n\nTo fix it, annotate that canonical constructor with @JsonCreator (mode=PROPERTIES) and put @JsonProperty on each parameter. For example:\n\n```java\n@JsonCreator(mode = JsonCreator.Mode.PROPERTIES)\npublic Part(\n    @JsonProperty(\"thought\") Boolean thought,\n    @JsonProperty(\"thoughtSignature\") String thoughtSignature,\n    @JsonProperty(\"text\") String text,\n    @JsonProperty(\"inlineData\") String inlineData,\n    @JsonProperty(\"functionCall\") FunctionCall functionCall,\n    @JsonProperty(\"functionResponse\") FunctionResponse functionResponse\n) {\n    validateUnion(text, inlineData, functionCall, functionResponse);\n    this.thought = thought;\n    …\n}\n```\n\nAlternatively, drop the explicit constructor (or use a compact constructor) so Jackson’s built-in record support can pick up the implicit canonical constructor and, if you’re obfuscating, add rules to keep parameter names for Jackson."
+  },
+  {
+    "type": "USER",
+    "content": "Can you educate me more on this jackson matter? Why should i believe you?"
+  },
+  {
+    "type": "ASSISTANT",
+    "content": "Jackson’s record support relies on being able to match JSON property names to the parameters of the *canonical* record constructor. By default Jackson:\n\n1. Looks for a record’s *implicit* canonical constructor (the one the compiler generates for you, which has the exact same parameter names as the record components).\n2. Uses parameter names (from bytecode, or from `-parameters` if you’ve compiled with that flag) together with `@JsonProperty` to bind JSON fields to constructor args.\n\nOnce you add **any** explicit constructor—even one whose signature exactly matches the components—Jackson no longer treats the implicit one as available. It sees only your explicit constructor, which:\n\n• Is not annotated with `@JsonCreator`  \n• Has no reliable parameter names if you’ve run an obfuscator  \n\nSo Jackson says “I see a constructor but I can’t figure out which JSON property goes to which parameter.” Hence the “no delegate- or property-based Creator” error.\n\nTo fix it you have two main options:\n\n1. **Annotate your explicit constructor**  \n   ```java\n   @JsonCreator(mode = JsonCreator.Mode.PROPERTIES)\n   public Part(\n       @JsonProperty(\"thought\") Boolean thought,\n       @JsonProperty(\"thoughtSignature\") String thoughtSignature,\n       // … etc\n   ) {\n       validateUnion(text, inlineData, functionCall, functionResponse);\n       this.thought = thought;\n       // …\n   }\n   ```\n   This makes Jackson treat that constructor as the binding entrypoint and use each `@JsonProperty` to wire JSON → param.\n\n2. **Remove your explicit constructor** (or switch to a *compact* constructor) so Jackson can go back to using the implicit canonical constructor automatically. If you do this, make sure you compile with `-parameters` (or add `@ConstructorProperties` or `@JsonProperty` on the record components) so Jackson can read the right names even after obfuscation.\n\nWhy trust this? Because this is exactly how Jackson’s `RecordIntrospector` and `ParameterNamesModule` work under the hood. You can confirm by:\n\n- Removing your explicit constructor and seeing that deserialization magically works again\n- Adding the `@JsonCreator` + `@JsonProperty` annotations and seeing that it again can construct your `Part` instance from JSON\n\nIn short: Jackson needs an *annotated* or *implicit* constructor with discoverable parameter names; once you override it without telling Jackson how to bind fields, deserialization fails."
+  },
+  {
+    "type": "USER",
+    "content": "Proceed"
+  },
+  {
+    "type": "ASSISTANT",
+    "content": "",
+    "tool_calls": [
+      {
+        "id": "4ba16b59-23fd-441d-ae7b-dcbfed157830",
+        "name": "read_file",
+        "arguments": "{\"target_file\":\"models/spring-ai-google-gemini/src/main/java/org/springframework/ai/google/gemini/api/GoogleGeminiApi.java\",\"start_line\":1,\"end_line\":40}"
+      }
+    ]
+  },
+  {
+    "type": "TOOL",
+    "content": "",
+    "tool_responses": [
+      {
+        "id": "4ba16b59-23fd-441d-ae7b-dcbfed157830",
+        "name": "read_file",
+        "responseData": "{\"result\":\"failure\",\"reason\":\"VirtualFile not found for path: models/spring-ai-google-gemini/src/main/java/org/springframework/ai/google/gemini/api/GoogleGeminiApi.java\"}"
+      }
+    ]
+  },
+  {
+    "type": "ASSISTANT",
+    "content": "",
+    "tool_calls": [
+      {
+        "id": "da0e25f3-9a52-4490-98c2-becb7257ea1b",
+        "name": "search_for_text",
+        "arguments": "{\"target_path\":\".\",\"text_snippet\":\"public record Part\",\"is_case_sensitive\":false}"
+      }
+    ]
+  },
+  {
+    "type": "TOOL",
+    "content": "",
+    "tool_responses": [
+      {
+        "id": "da0e25f3-9a52-4490-98c2-becb7257ea1b",
+        "name": "search_for_text",
+        "responseData": "{\"result\":\"success\",\"content\":[{path=\"models/spring-ai-google-gemini/src/main/java/org/springframework/ai/google.gemini/api/GoogleGeminiApi.java\", line=156, column=2, content=\"\\tpublic record Part(@JsonProperty(\\\\\\\"thought\\\\\\\") Boolean thought,\"}]}"
+      }
+    ]
+  },
+  {
+    "type": "ASSISTANT",
+    "content": "",
+    "tool_calls": [
+      {
+        "id": "d82aa5ea-8765-4bfa-9abc-0a5a6bc5e4c9",
+        "name": "search_for_text",
+        "arguments": "{\"target_path\":\"models/spring-ai-google-gemini/src/main/java/org/springframework/ai/google/gemini/api/GoogleGeminiApi.java\",\"text_snippet\":\"public Part(Boolean thought\",\"is_case_sensitive\":true}"
+      }
+    ]
+  },
+  {
+    "type": "TOOL",
+    "content": "",
+    "tool_responses": [
+      {
+        "id": "d82aa5ea-8765-4bfa-9abc-0a5a6bc5e4c9",
+        "name": "search_for_text",
+        "responseData": "{\"result\":\"failure\",\"reason\":\"Target not found: models/spring-ai-google-gemini/src/main/java/org/springframework/ai/google/gemini/api/GoogleGeminiApi.java\"}"
+      }
+    ]
+  },
+  {
+    "type": "ASSISTANT",
+    "content": "",
+    "tool_calls": [
+      {
+        "id": "711a5de0-43e0-4291-aa78-9ab85e83c72f",
+        "name": "search_for_text",
+        "arguments": "{\"target_path\":\".\",\"text_snippet\":\"public record Part\",\"is_case_sensitive\":true}"
+      }
+    ]
+  },
+  {
+    "type": "TOOL",
+    "content": "",
+    "tool_responses": [
+      {
+        "id": "711a5de0-43e0-4291-aa78-9ab85e83c72f",
+        "name": "search_for_text",
+        "responseData": "{\"result\":\"success\",\"content\":[{path=\"models/spring-ai-google-gemini/src/main/java/org/springframework/ai/google.gemini/api/GoogleGeminiApi.java\", line=156, column=2, content=\"\\tpublic record Part(@JsonProperty(\\\\\\\"thought\\\\\\\") Boolean thought,\"}]}"
+      }
+    ]
+  },
+  {
+    "type": "ASSISTANT",
+    "content": "",
+    "tool_calls": [
+      {
+        "id": "6243cff3-49d7-48d6-b38f-06ca78f5b8c8",
+        "name": "read_file",
+        "arguments": "{\"target_file\":\"models/spring-ai-google-gemini/src/main/java/org/springframework/ai/google/gemini/api/GoogleGeminiApi.java\",\"start_line\":140,\"end_line\":200}"
+      }
+    ]
+  },
+  {
+    "type": "TOOL",
+    "content": "",
+    "tool_responses": [
+      {
+        "id": "6243cff3-49d7-48d6-b38f-06ca78f5b8c8",
+        "name": "read_file",
+        "responseData": "{\"result\":\"failure\",\"reason\":\"VirtualFile not found for path: models/spring-ai-google-gemini/src/main/java/org/springframework/ai/google/gemini/api/GoogleGeminiApi.java\"}"
+      }
+    ]
+  },
+  {
+    "type": "ASSISTANT",
+    "content": "",
+    "tool_calls": [
+      {
+        "id": "323d595b-e9e5-4b18-90b4-8102681a674a",
+        "name": "search_file_by_name",
+        "arguments": "{\"glob_pattern\":\"GoogleGeminiApi.java\",\"search_directory\":\".\"}"
+      }
+    ]
+  },
+  {
+    "type": "TOOL",
+    "content": "",
+    "tool_responses": [
+      {
+        "id": "323d595b-e9e5-4b18-90b4-8102681a674a",
+        "name": "search_file_by_name",
+        "responseData": "{\"result\":\"success\",\"content\":[{\"path\":\"models/spring-ai-google-gemini/src/main/java/org/springframework/ai/google.gemini/api/GoogleGeminiApi.java\"}]}"
+      }
+    ]
+  },
+  {
+    "type": "ASSISTANT",
+    "content": "",
+    "tool_calls": [
+      {
+        "id": "3e64dfc9-a57a-4e24-b992-7a6ef107268a",
+        "name": "search_for_text",
+        "arguments": "{\"target_path\":\".\",\"text_snippet\":\"validateUnion\",\"is_case_sensitive\":false}"
+      }
+    ]
+  },
+  {
+    "type": "TOOL",
+    "content": "",
+    "tool_responses": [
+      {
+        "id": "3e64dfc9-a57a-4e24-b992-7a6ef107268a",
+        "name": "search_for_text",
+        "responseData": "{\"result\":\"success\",\"content\":[{path=\"models/spring-ai-google-gemini/src/main/java/org/springframework/ai/google.gemini/api/GoogleGeminiApi.java\", line=164, column=4, content=\"\\t\\t\\tvalidateUnion(text, inlineData, functionCall, functionResponse);\"}, {path=\"models/spring-ai-google-gemini/src/main/java/org/springframework/ai/google.gemini/api/GoogleGeminiApi.java\", line=173, column=23, content=\"\\t\\tprivate static void validateUnion(Object text, Object inlineData, Object functionCall,\"}]}"
+      }
+    ]
+  },
+  {
+    "type": "ASSISTANT",
+    "content": "",
+    "tool_calls": [
+      {
+        "id": "c2af07b9-bb91-43b7-8116-0db7f640f9c9",
+        "name": "read_file",
+        "arguments": "{\"target_file\":\"models/spring-ai-google-gemini/src/main/java/org/springframework/ai/google/gemini/api/GoogleGeminiApi.java\",\"start_line\":150,\"end_line\":195}"
+      }
+    ]
+  },
+  {
+    "type": "TOOL",
+    "content": "",
+    "tool_responses": [
+      {
+        "id": "c2af07b9-bb91-43b7-8116-0db7f640f9c9",
+        "name": "read_file",
+        "responseData": "{\"result\":\"failure\",\"reason\":\"VirtualFile not found for path: models/spring-ai-google-gemini/src/main/java/org/springframework/ai/google/gemini/api/GoogleGeminiApi.java\"}"
+      }
+    ]
+  },
+  {
+    "type": "ASSISTANT",
+    "content": "",
+    "tool_calls": [
+      {
+        "id": "daaba268-87d5-452c-bf5a-eedd9b964e77",
+        "name": "list_dir",
+        "arguments": "{\"directory_path\":\"models/spring-ai-google-gemini/src/main/java/org/springframework/ai\",\"depth\":4}"
+      }
+    ]
+  },
+  {
+    "type": "TOOL",
+    "content": "",
+    "tool_responses": [
+      {
+        "id": "daaba268-87d5-452c-bf5a-eedd9b964e77",
+        "name": "list_dir",
+        "responseData": "{\"result\":\"success\",\"content\":\"+ ai\\n  + google.gemini\\n    + aot\\n      - GoogleGeminiRuntimeHints.java\\n    + api\\n      - GoogleGeminiApi.java\\n      - GoogleGeminiApiConstants.java\\n    - GoogleGeminiChatModel.java\\n    - GoogleGeminiChatOptions.java\\n    + metadata\\n      - GoogleGeminiUsage.java\\n    - ResponseSchema.java\\n\"}"
+      }
+    ]
+  },
+  {
+    "type": "ASSISTANT",
+    "content": "",
+    "tool_calls": [
+      {
+        "id": "c95fad8c-76f9-4c0e-ade0-11bed3b523fe",
+        "name": "read_file",
+        "arguments": "{\"target_file\":\"models/spring-ai-google-gemini/src/main/java/org/springframework/ai/google/gemini/api/GoogleGeminiApi.java\",\"start_line\":140,\"end_line\":200}"
+      }
+    ]
+  },
+  {
+    "type": "TOOL",
+    "content": "",
+    "tool_responses": [
+      {
+        "id": "c95fad8c-76f9-4c0e-ade0-11bed3b523fe",
+        "name": "read_file",
+        "responseData": "{\"result\":\"failure\",\"reason\":\"VirtualFile not found for path: models/spring-ai-google-gemini/src/main/java/org/springframework/ai/google/gemini/api/GoogleGeminiApi.java\"}"
+      }
+    ]
+  },
+  {
+    "type": "ASSISTANT",
+    "content": "",
+    "tool_calls": [
+      {
+        "id": "10be23e5-6ecb-484a-bfa5-13565785721f",
+        "name": "read_file",
+        "arguments": "{\"target_file\":\"models/spring-ai-google-gemini/src/main/java/org/springframework/ai/google.gemini/api/GoogleGeminiApi.java\",\"start_line\":140,\"end_line\":200}"
+      }
+    ]
+  },
+  {
+    "type": "TOOL",
+    "content": "",
+    "tool_responses": [
+      {
+        "id": "10be23e5-6ecb-484a-bfa5-13565785721f",
+        "name": "read_file",
+        "responseData": "{\"result\":\"success\",\"content\":{\"file_line_count\":526,\"text\":\"\\t\\tChatModel(String value) {\\n\\t\\t\\tthis.value = value;\\n\\t\\t}\\n\\n\\t\\tpublic String getValue() {\\n\\t\\t\\treturn value;\\n\\t\\t}\\n\\n\\t\\t@Override\\n\\t\\tpublic String getName() {\\n\\t\\t\\treturn value;\\n\\t\\t}\\n\\n\\t}\\n\\n\\t@JsonInclude(Include.NON_NULL)\\n\\tpublic record Part(@JsonProperty(\\\"thought\\\") Boolean thought,\\n\\t\\t\\t@JsonProperty(\\\"thoughtSignature\\\") String thoughtSignature, @JsonProperty(\\\"text\\\") String text,\\n\\t\\t\\t@JsonProperty(\\\"inlineData\\\") String inlineData, @JsonProperty(\\\"functionCall\\\") FunctionCall functionCall,\\n\\t\\t\\t@JsonProperty(\\\"functionResponse\\\") FunctionResponse functionResponse) {\\n\\n//\\t\\t// Enforce union type: only one of the union fields can be non-null\\n//\\t\\tpublic Part(Boolean thought, String thoughtSignature, String text, String inlineData, FunctionCall functionCall,\\n//\\t\\t\\t\\tFunctionResponse functionResponse) {\\n//\\t\\t\\tvalidateUnion(text, inlineData, functionCall, functionResponse);\\n//\\t\\t\\tthis.thought = thought;\\n//\\t\\t\\tthis.thoughtSignature = thoughtSignature;\\n//\\t\\t\\tthis.text = text;\\n//\\t\\t\\tthis.inlineData = inlineData;\\n//\\t\\t\\tthis.functionCall = functionCall;\\n//\\t\\t\\tthis.functionResponse = functionResponse;\\n//\\t\\t}\\n//\\n//\\t\\tprivate static void validateUnion(Object text, Object inlineData, Object functionCall,\\n//\\t\\t\\t\\tObject functionResponse) {\\n//\\t\\t\\tint count = 0;\\n//\\t\\t\\tif (text != null)\\n//\\t\\t\\t\\tcount++;\\n//\\t\\t\\tif (inlineData != null)\\n//\\t\\t\\t\\tcount++;\\n//\\t\\t\\tif (functionCall != null)\\n//\\t\\t\\t\\tcount++;\\n//\\t\\t\\tif (functionResponse != null)\\n//\\t\\t\\t\\tcount++;\\n//\\t\\t\\tif (count > 1) {\\n//\\t\\t\\t\\tthrow new IllegalArgumentException(\\n//\\t\\t\\t\\t\\t\\t\\\"Part union type violation: only one of text, inlineData, functionCall, functionResponse, fileData, executableCode, codeExecutionResult can be non-null\\\");\\n//\\t\\t\\t}\\n//\\t\\t}\\n\\n\\t\\tpublic Part(String text) {\\n\\t\\t\\tthis(false, null, text, null, null, null);\\n\\t\\t}\\n\\n\\t\\tpublic Part(FunctionCall functionCall) {\\n\\t\\t\\tthis(false, null, null, null, functionCall, null);\\n\\t\\t}\\n\\n\\t\\tpublic Part(FunctionResponse functionResponse) {\\n\\t\\t\\tthis(false, null, null, null, null, functionResponse);\\n\\t\\t}\"}}"
+      }
+    ]
+  },
+  {
+    "type": "ASSISTANT",
+    "content": "",
+    "tool_calls": [
+      {
+        "id": "90e90504-2d8f-45d9-a06a-1d315deaa955",
+        "name": "search_for_text",
+        "arguments": "{\"target_path\":\"models/spring-ai-google-gemini/src/main/java/org/springframework/ai/google/gemini/api/GoogleGeminiApi.java\",\"text_snippet\":\"//\\t\\tpublic Part(Boolean thought\",\"is_case_sensitive\":false}"
+      }
+    ]
+  },
+  {
+    "type": "TOOL",
+    "content": "",
+    "tool_responses": [
+      {
+        "id": "90e90504-2d8f-45d9-a06a-1d315deaa955",
+        "name": "search_for_text",
+        "responseData": "{\"result\":\"failure\",\"reason\":\"Target not found: models/spring-ai-google-gemini/src/main/java/org/springframework/ai/google/gemini/api/GoogleGeminiApi.java\"}"
+      }
+    ]
+  },
+  {
+    "type": "ASSISTANT",
+    "content": "",
+    "tool_calls": [
+      {
+        "id": "b27d08dc-2232-4cb6-b310-95e106e33a0b",
+        "name": "search_for_text",
+        "arguments": "{\"target_path\":\"models/spring-ai-google-gemini/src/main/java/org/springframework/ai/google.gemini/api/GoogleGeminiApi.java\",\"text_snippet\":\"JsonCreator\",\"is_case_sensitive\":false}"
+      }
+    ]
+  },
+  {
+    "type": "TOOL",
+    "content": "",
+    "tool_responses": [
+      {
+        "id": "b27d08dc-2232-4cb6-b310-95e106e33a0b",
+        "name": "search_for_text",
+        "responseData": "{\"result\":\"success\",\"content\":[{line=211, column=38, content=\"\\t\\t\\t@com.fasterxml.jackson.annotation.JsonCreator\"}]}"
+      }
+    ]
+  },
+  {
+    "type": "ASSISTANT",
+    "content": "",
+    "tool_calls": [
+      {
+        "id": "da63ca01-caa6-46f2-b235-c024ff0f2be9",
+        "name": "read_file",
+        "arguments": "{\"target_file\":\"models/spring-ai-google-gemini/src/main/java/org/springframework/ai/google/gemini/api/GoogleGeminiApi.java\",\"start_line\":200,\"end_line\":260}"
+      }
+    ]
+  },
+  {
+    "type": "TOOL",
+    "content": "",
+    "tool_responses": [
+      {
+        "id": "da63ca01-caa6-46f2-b235-c024ff0f2be9",
+        "name": "read_file",
+        "responseData": "{\"result\":\"failure\",\"reason\":\"VirtualFile not found for path: models/spring-ai-google-gemini/src/main/java/org/springframework/ai/google/gemini/api/GoogleGeminiApi.java\"}"
+      }
+    ]
+  },
+  {
+    "type": "ASSISTANT",
+    "content": "Here’s a deeper dive into how Jackson handles Java records and why my suggestions will fix your issue:\n\n1. Jackson’s Record Introspection  \n   - By default, Jackson detects a record’s *implicit* canonical constructor (with parameters matching the record components) and uses it for deserialization.  \n   - It requires *discoverable* parameter names—either via the `-parameters` compiler flag, `@ConstructorProperties`, or `@JsonProperty` on each component.\n\n2. Why your explicit constructor broke things  \n   - As soon as you declare any explicit constructor—even one matching the record components—Jackson stops treating the implicit one as available.  \n   - Your explicit ctor lacked a `@JsonCreator` and, after obfuscation, its parameter names no longer match the JSON properties, so Jackson can’t wire them.\n\n3. The two reliable fixes  \n   - **Annotate your explicit constructor**:  \n     ```java\n     @JsonCreator(mode = JsonCreator.Mode.PROPERTIES)\n     public Part(\n         @JsonProperty(\"thought\") Boolean thought,\n         @JsonProperty(\"text\") String text,\n         … // etc\n     ) { … }\n     ```  \n     This tells Jackson exactly which JSON prop goes to which parameter.  \n   - **Remove the explicit ctor** (or switch to a *compact* ctor) and compile with `-parameters` (or add `@JsonProperty` on record components) so Jackson finds and uses the implicit canonical ctor.\n\n—————————————————————————————————————  \n### Checklist for Record Deserialization  \n- [ ] Ensure you compile with `-parameters` or annotate components  \n- [ ] Use `@JsonCreator(mode = PROPERTIES)` on any explicit constructor  \n- [ ] Add `@JsonProperty(\"…\")` to every constructor parameter  \n- [ ] Keep JSON field names in sync with record component names  \n\n### Actions  \n<button onclick=\"alert('Showing full code example...')\">Show annotated constructor example</button>  \n<button onclick=\"alert('Linking to Jackson documentation...')\">Open Jackson Record docs</button>"
+  },
+  {
+    "type": "USER",
+    "content": "So i comment out `validateUnion` and i should be good to go?"
+  },
+  {
+    "type": "ASSISTANT",
+    "content": "No—commenting out the union‐check won’t fix Jackson’s inability to find a creator. The problem isn’t your validation logic, it’s that Jackson can’t discover a suitable constructor (with matching parameter names or a `@JsonCreator`).  \n\nYou need to either:  \n1. **Annotate a all-args constructor** as Jackson’s creator:  \n   ```java\n   @JsonCreator(mode = JsonCreator.Mode.PROPERTIES)\n   public Part(\n     @JsonProperty(\"thought\") Boolean thought,\n     @JsonProperty(\"thoughtSignature\") String thoughtSignature,\n     @JsonProperty(\"text\") String text,\n     @JsonProperty(\"inlineData\") String inlineData,\n     @JsonProperty(\"functionCall\") FunctionCall functionCall,\n     @JsonProperty(\"functionResponse\") FunctionResponse functionResponse\n   ) {\n     validateUnion(text, inlineData, functionCall, functionResponse);\n     this.thought = thought;\n     …\n   }\n   ```  \n2. **Let Jackson use the implicit canonical constructor** by removing any explicit canonical constructor and compiling with `-parameters` (or annotating record components with `@JsonProperty`).  \n\nRemoving `validateUnion(...)` alone won’t restore Jackson’s constructor discovery. You must explicitly tell Jackson how to bind record components to JSON properties."
+  },
+  {
+    "type": "USER",
+    "content": "ok, i comment out ctor, that uses validate union, yes?\n///public Part(Boolean thought, String thoughtSignature, String text, String inlineData, FunctionCall functionCall,\n//\t\t\t\tFunctionResponse functionResponse) {\n//\t\t\tvalidateUnion(text, inlineData, functionCall, functionResponse);\n...\n"
+  },
+  {
+    "type": "ASSISTANT",
+    "content": "Yes—removing (or commenting out) that hand-rolled all-args constructor will let Jackson fall back to the record’s *implicit* canonical constructor, and because you’ve already put `@JsonProperty` on each component, Jackson can bind JSON fields correctly.  \n\nJust make sure you don’t leave *any* other explicit constructor that matches the components; once it’s gone, Jackson sees the implicit one and uses the `@JsonProperty` annotations to wire up each field."
+  },
+  {
+    "type": "USER",
+    "content": "Ok, i cannot explain one thing: my other project, ai-router, depends on this. then ai-plugin deoends on ai-router. I did following experiments:\n- local spring-ai, local router, obfuscated plugin: MismatchedInputException\n- spring-ai from github artefactory (NO FIX), local router, obfuscated plugin: NO exception\n\nwhy???"
+  },
+  {
+    "type": "ASSISTANT",
+    "content": "When you pull in the published spring-ai JAR, your plugin’s obfuscator treats it as a third-party library and leaves its record-parameter metadata (and Jackson annotations) intact—so Jackson can find the implicit constructor and @JsonProperty values just fine.  But when you include spring-ai as a local project and then run your plugin’s ProGuard/R8 pass, those record classes get obfuscated (parameter names and/or annotations get stripped), so Jackson no longer sees a matching creator and throws MismatchedInputException.  \n\nTo fix it you need to add keep-rules to your obfuscation config so that the Part record (and its constructor parameter annotations) aren’t renamed or removed. For example, in your ProGuard/R8 file:\n\n```proguard\n-keepattributes RuntimeVisibleAnnotations,RuntimeVisibleParameterAnnotations\n-keep class org.springframework.ai.google.gemini.api.GoogleGeminiApi$Part {\n    public <init>(java.lang.Boolean,java.lang.String,java.lang.String,java.lang.String,*,*);\n}\n```"
+  },
+  {
+    "type": "USER",
+    "content": "then why artefactory router, artefactory spring-ai also results in error?"
+  },
+  {
+    "type": "ASSISTANT",
+    "content": "When you run against the locally‐built ai-router project in your IDE, you inadvertently get a build that:\n\n  • Was compiled with “–parameters” turned on (so the record’s canonical ctor parameter names are in the bytecode),  \n  • Brings in Jackson’s ParameterNamesModule (Spring Boot auto-registers it via “jackson-module-parameter-names”),  \n\nso Jackson can bind JSON→`Part(...)` with no error.\n\nBut your published ai-router artifact on Artifactory was built *without* the `-parameters` compiler flag (and/or without pulling in the ParameterNamesModule), so when your obfuscated plugin depends *only* on the two jars:\n\n  • There are no parameter names in the bytecode for the implicit ctor  \n  • Jackson never learns about them (no ParameterNamesModule)  \n\n→ Jackson falls back to “I see a record, but I can’t match JSON fields to any ctor parameters” and you get MismatchedInputException again.\n\n— To fix this in your CI/publishing pipeline:\n\n  1. Turn on `-parameters` for all Gradle `JavaCompile` and `KotlinCompile` tasks in both spring-ai and ai-router so that the record parameter names survive into your published JARs.  \n     ```kotlin\n     tasks.withType<JavaCompile> {\n       options.compilerArgs += listOf(\"-parameters\")\n     }\n     tasks.withType<org.jetbrains.kotlin.gradle.tasks.KotlinCompile> {\n       kotlinOptions.freeCompilerArgs += listOf(\"-Xjsr305=strict\",\"-java-parameters\")\n     }\n     ```\n\n  2. Ensure Jackson’s ParameterNamesModule is on the runtime classpath (e.g. add `implementation(\"com.fasterxml.jackson.module:jackson-module-parameter-names\")`) or explicitly register it on your `ObjectMapper`.\n\n  3. (Optional / extra-safe) Add a `@JsonCreator`+`@JsonProperty`-annotated all-args ctor in your `Part` record so Jackson never has to rely on parameter names being in the bytecode.\n\nOnce your published ai-router and spring-ai jars both contain parameter names *and* register the ParameterNamesModule, you’ll see the same no-error behavior you get locally."
+  }
+]
