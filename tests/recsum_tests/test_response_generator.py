@@ -1,6 +1,7 @@
 from unittest.mock import MagicMock, create_autospec
 
 import pytest
+
 from langchain_core.language_models import BaseChatModel
 from langchain_core.prompts import PromptTemplate
 

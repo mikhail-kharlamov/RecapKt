@@ -3,6 +3,7 @@ from typing import Any
 
 import numpy as np
 import tiktoken
+
 from langchain_openai import OpenAIEmbeddings
 from sklearn.metrics.pairwise import cosine_similarity
 

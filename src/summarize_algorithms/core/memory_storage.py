@@ -1,10 +1,12 @@
 import math
 import os
+
 from dataclasses import dataclass
 from typing import Iterable, Optional
 
 import faiss
 import numpy as np
+
 from dotenv import load_dotenv
 from langchain_core.embeddings import Embeddings
 from langchain_openai import OpenAIEmbeddings
