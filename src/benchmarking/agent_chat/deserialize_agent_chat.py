@@ -106,7 +106,7 @@ class ChatDataset:
     @classmethod
     def from_file(
         cls,
-        file_name: str = "/Users/mikhailkharlamov/Documents/Explyt/RecapKt/src/benchmarking/agent_chat/"
+        file_name: str = "/Users/mikhailkharlamov/Documents/RecapKt/src/benchmarking/agent_chat/"
         "combined_chat_history_sessions.json",
     ) -> "ChatDataset":
         processor = MessageProcessor()

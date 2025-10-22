@@ -66,7 +66,7 @@ class CalculateAgentChatResponseMetrics:
         self.full_baseline = DialogueBaseline("FullBaseline")
         self.last_baseline = DialogueBaseline("LastBaseline")
 
-        self.path_to_save = Path("/Users/mikhailkharlamov/Documents/Explyt/RecapKt/src/benchmarking/agent_chat/results")
+        self.path_to_save = Path("/Users/mikhailkharlamov/Documents/RecapKt/src/benchmarking/agent_chat/results")
 
     def calculate(self) -> None:
         dialogue = self.dataset.sessions

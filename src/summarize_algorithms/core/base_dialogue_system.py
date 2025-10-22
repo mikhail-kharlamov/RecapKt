@@ -13,14 +13,19 @@ from langgraph.constants import END
 from langgraph.graph import StateGraph
 from langgraph.graph.state import CompiledStateGraph
 
+from src.benchmarking.memory_logger import MemoryLogger
 from src.summarize_algorithms.core.graph_nodes import (
     UpdateState,
     generate_response_node,
     should_continue_memory_update,
     update_memory_node,
 )
-from src.benchmarking.memory_logger import MemoryLogger
-from src.summarize_algorithms.core.models import DialogueState, Session, WorkflowNode, OpenAIModels
+from src.summarize_algorithms.core.models import (
+    DialogueState,
+    OpenAIModels,
+    Session,
+    WorkflowNode,
+)
 from src.summarize_algorithms.core.prompts import RESPONSE_GENERATION_PROMPT
 from src.summarize_algorithms.core.response_generator import ResponseGenerator
 
