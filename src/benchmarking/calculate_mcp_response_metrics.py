@@ -19,7 +19,7 @@ from src.benchmarking.semantic_similarity import SemanticSimilarity
 class CalculateMCPResponseMetrics(CalculateMCPMetrics):
     def __init__(self, *args: Any, **kwargs: Any) -> None:
         super().__init__(*args, **kwargs)
-        self.baseline = DialogueBaseline()
+        self.baseline = DialogueBaseline("dialog_baseline")
         self.semantic_scorer = SemanticSimilarity()
         self.llm_scorer = LLMResponseEvaluation()
 
@@ -94,7 +94,7 @@ class CalculateMCPResponseMetrics(CalculateMCPMetrics):
             recsum_response = self.recsum.process_dialogue(
                 dialogue, query.content
             ).response
-            baseline_response = self.baseline.process_dialogue(dialogue, query.content)
+            baseline_response = self.baseline.process_dialogue(dialogue, query.content, self.message_count)
 
             self._update_semantic_scores(
                 recsum_response, baseline_response, ideal_response.content

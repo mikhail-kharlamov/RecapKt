@@ -1,6 +1,6 @@
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import Iterator, Optional
+from typing import Iterator, Optional, Any
 
 from dataclasses_json import dataclass_json
 
@@ -62,7 +62,7 @@ class Session:
     def __iter__(self) -> Iterator[BaseBlock]:
         return iter(self.messages)
 
-    def __dict__(self) -> dict:
+    def to_dict(self) -> dict[str, Any]:
         result_messages = []
         for msg in self.messages:
             if isinstance(msg, CodeBlock):

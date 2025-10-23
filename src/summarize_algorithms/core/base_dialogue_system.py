@@ -13,6 +13,7 @@ from langchain_openai import ChatOpenAI
 from langgraph.constants import END
 from langgraph.graph import StateGraph
 from langgraph.graph.state import CompiledStateGraph
+from pydantic import SecretStr
 
 from src.benchmarking.memory_logger import MemoryLogger
 from src.summarize_algorithms.core.graph_nodes import (
@@ -42,10 +43,15 @@ class BaseDialogueSystem(ABC):
     ) -> None:
         load_dotenv()
 
-        self.llm = llm or ChatOpenAI(
-            model=OpenAIModels.GPT_5_MINI.value,
-            api_key=os.getenv("OPENAI_API_KEY")
-        )
+        api_key: str | None = os.getenv("OPENAI_API_KEY")
+        if api_key is not None:
+            self.llm = llm or ChatOpenAI(
+                model=OpenAIModels.GPT_5_MINI.value,
+                api_key=SecretStr(api_key)
+            )
+        else:
+            raise ValueError("OPENAI_API_KEY environment variable is not loaded")
+
         self.summarizer = self._build_summarizer()
         self.response_generator = ResponseGenerator(
             self.llm, self._get_response_prompt_template()

@@ -10,7 +10,7 @@ from src.summarize_algorithms.core.models import DialogueState, Session
 
 
 class BaselineLogger:
-    def __init__(self, logs_dir="logs/baseline") -> None:
+    def __init__(self, logs_dir: str = "logs/baseline") -> None:
         os.makedirs(logs_dir, exist_ok=True)
         self.log_dir = Path(logs_dir)
         self.logger = logging.getLogger(__name__)
@@ -29,7 +29,7 @@ class BaselineLogger:
             "iteration": iteration,
             "system": system_name,
             "query": query,
-            "sessions": [s.__dict__() for s in sessions],
+            "sessions": [s.to_dict() for s in sessions],
         }
 
         with open(self.log_dir / (system_name + str(iteration) + ".jsonl"), "a", encoding="utf-8") as f:

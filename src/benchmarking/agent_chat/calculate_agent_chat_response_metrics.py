@@ -17,7 +17,6 @@ from src.summarize_algorithms.memory_bank.dialogue_system import (
     MemoryBankDialogueSystem,
 )
 from src.summarize_algorithms.recsum.dialogue_system import RecsumDialogueSystem
-from src.utils.configure_logs import configure_logs
 
 
 @dataclass
@@ -75,7 +74,7 @@ class CalculateAgentChatResponseMetrics:
             self.logger.info(f"Processing dialogue {i + 1}/{len(dialogue)}")
             self._process(dialogue[: i + 1], i + 1)
 
-    def _process(self, sessions: list[Session], iteration) -> None:
+    def _process(self, sessions: list[Session], iteration: int) -> None:
         last_session = sessions[-1]
         query = ""
         for i in range(len(last_session.messages) - 1, -1, -1):
@@ -298,8 +297,6 @@ class CalculateAgentChatResponseMetrics:
 
 
 def main() -> None:
-    configure_logs()
-
     metric_calculator = CalculateAgentChatResponseMetrics()
 
     logger = logging.getLogger()

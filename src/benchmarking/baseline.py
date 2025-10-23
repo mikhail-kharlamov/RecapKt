@@ -8,6 +8,7 @@ from langchain_core.language_models import BaseChatModel
 from langchain_core.output_parsers import StrOutputParser
 from langchain_core.runnables import Runnable
 from langchain_openai import ChatOpenAI
+from pydantic import SecretStr
 
 from src.benchmarking.baseline_logger import BaselineLogger
 from src.benchmarking.prompts import BASELINE_PROMPT
@@ -20,10 +21,15 @@ class DialogueBaseline:
 
         self.system_name = system_name
 
-        self.llm = llm or ChatOpenAI(
-            model=OpenAIModels.GPT_5_MINI.value,
-            api_key=os.getenv("OPENAI_API_KEY")
-        )
+        api_key: str | None = os.getenv("OPENAI_API_KEY")
+        if api_key is not None:
+            self.llm = llm or ChatOpenAI(
+                model=OpenAIModels.GPT_5_MINI.value,
+                api_key=SecretStr(api_key)
+            )
+        else:
+            raise ValueError("OPENAI_API_KEY environment variable is not loaded")
+
         self.prompt_template = BASELINE_PROMPT
         self.chain = self._build_chain()
         self.prompt_tokens = 0

@@ -2,7 +2,7 @@ import math
 import os
 
 from dataclasses import dataclass
-from typing import Iterable, Optional
+from typing import Iterable, Optional, Any
 
 import faiss
 import numpy as np
@@ -10,6 +10,7 @@ import numpy as np
 from dotenv import load_dotenv
 from langchain_core.embeddings import Embeddings
 from langchain_openai import OpenAIEmbeddings
+from pydantic import SecretStr
 
 from src.summarize_algorithms.core.models import BaseBlock, CodeBlock
 
@@ -30,11 +31,16 @@ class MemoryStorage:
         load_dotenv()
 
         self.memory_list: list[MemoryFragment] = []
-        self.embeddings = embeddings or OpenAIEmbeddings(
-            model="text-embedding-3-small",
-            chunk_size=100,
-            api_key=os.getenv("OPENAI_API_KEY")
-        )
+        api_key: str | None = os.getenv("OPENAI_API_KEY")
+        if api_key is not None:
+            self.embeddings = embeddings or OpenAIEmbeddings(
+                model="text-embedding-3-small",
+                chunk_size=100,
+                api_key=SecretStr(api_key)
+            )
+        else:
+            raise ValueError("OPENAI_API_KEY environment variable is not loaded")
+
         self.max_session_id = max_session_id
         self.index = None
         self._is_initialized = False
@@ -119,7 +125,7 @@ class MemoryStorage:
             if fragment.session_id == session_id
         ]
 
-    def __dict__(self) -> dict:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "memory_list": [
                 {
