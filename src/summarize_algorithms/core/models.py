@@ -1,6 +1,6 @@
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import Iterator, Optional, Any
+from typing import Any, Iterator, Optional
 
 from dataclasses_json import dataclass_json
 

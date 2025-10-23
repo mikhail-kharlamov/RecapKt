@@ -2,7 +2,7 @@ import math
 import os
 
 from dataclasses import dataclass
-from typing import Iterable, Optional, Any
+from typing import Any, Iterable, Optional
 
 import faiss
 import numpy as np
