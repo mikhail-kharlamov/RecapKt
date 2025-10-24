@@ -10,6 +10,8 @@ Models with Long-Term Memory](https://arxiv.org/pdf/2305.10250),
 assembling all sessions in the context window of the model
 and using only last session for generating response.
 
+All of them are conducted using the dataset with code and tool/function calling.
+
 ## Technology Stack
 
 - Python 3.8+
