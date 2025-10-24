@@ -8,3 +8,5 @@ __pycache__/
 build/
 .venv/
 uv.lock
+.env
+src/benchmarking/agent_chat/logs

@@ -1,6 +1,8 @@
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import Iterator, Optional
+from typing import Any, Iterator, Optional
+
+from dataclasses_json import dataclass_json
 
 
 class OpenAIModels(Enum):
@@ -8,6 +10,8 @@ class OpenAIModels(Enum):
     GPT_4_1_MINI = "gpt-4.1-mini"
     GPT_4_O = "gpt-4o"
     GPT_4_1 = "gpt-4.1"
+    GPT_5_NANO = "gpt-5-nano"
+    GPT_5_MINI = "gpt-5-mini"
 
 
 @dataclass
@@ -58,6 +62,31 @@ class Session:
     def __iter__(self) -> Iterator[BaseBlock]:
         return iter(self.messages)
 
+    def to_dict(self) -> dict[str, Any]:
+        result_messages = []
+        for msg in self.messages:
+            if isinstance(msg, CodeBlock):
+                result_messages.append({
+                    "type": "code",
+                    "role": msg.role,
+                    "code": msg.code,
+                })
+            elif isinstance(msg, ToolCallBlock):
+                result_messages.append({
+                    "type": "tool_call",
+                    "id": msg.id,
+                    "name": msg.name,
+                    "arguments": msg.arguments,
+                    "response": msg.response,
+                })
+            else:
+                result_messages.append({
+                    "type": "text",
+                    "role": msg.role,
+                    "content": msg.content,
+                })
+        return {"messages": result_messages}
+
     def get_messages_by_role(self, role: str) -> list[BaseBlock]:
         return [msg for msg in self.messages if msg.role == role]
 
@@ -75,6 +104,7 @@ class Session:
         return [msg for msg in self.messages if isinstance(msg, ToolCallBlock)]
 
 
+@dataclass_json
 @dataclass
 class DialogueState:
     from src.summarize_algorithms.core.memory_storage import MemoryStorage
@@ -97,6 +127,7 @@ class DialogueState:
         return self.dialogue_sessions[-1]
 
 
+@dataclass_json
 @dataclass
 class RecsumDialogueState(DialogueState):
     text_memory: list[list[str]] = field(default_factory=list)
@@ -106,6 +137,7 @@ class RecsumDialogueState(DialogueState):
         return "\n".join(self.text_memory[-1]) if self.text_memory else ""
 
 
+@dataclass_json
 @dataclass
 class MemoryBankDialogueState(DialogueState):
     from src.summarize_algorithms.core.memory_storage import MemoryStorage
