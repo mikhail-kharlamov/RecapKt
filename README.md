@@ -2,9 +2,13 @@
 
 [![CI](https://github.com/ArtemKushnir/RecapKt/actions/workflows/ci.yaml/badge.svg)](https://github.com/ArtemKushnir/RecapKt/actions/workflows/ci.yaml)
 
-Implementation of recursive summarization of dialogues from the
+Comparison between implementations of Recursive Summarization of Dialogues from the
 article [Recursively Summarizing Enables Long-Term Dialogue
-Memory in Large Language Models](https://arxiv.org/pdf/2308.15022)
+Memory in Large Language Models](https://arxiv.org/pdf/2308.15022),
+Memory Bank from the article [MemoryBank: Enhancing Large Language
+Models with Long-Term Memory](https://arxiv.org/pdf/2305.10250),
+assembling all sessions in the context window of the model
+and using only last session for generating response.
 
 ## Technology Stack
 
@@ -49,13 +53,15 @@ The algorithm's response will be presented in **DialogueState** format, which is
 ```python
 # src/main.py
 
-from src.recsum.dialogue_system import DialogueSystem
+from src.recsum.summarize_algorithms.memory_bank import MemoryBankDialogueSystem
+from src.recsum.summarize_algorithms.recsum import RecsumDialogueSystem
 from src.recsum.models import Message, Session
 
 
 def main() -> None:
     sessions = ...
-    result = system.process_dialogue(sessions, current_query)
+    memory_bank = MemoryBankDialogueSystem()
+    result = memory_bank.process_dialogue(sessions, current_query)
 
     # example visualize results
     print(f"Memory: {result.latest_memory}")

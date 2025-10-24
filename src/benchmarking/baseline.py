@@ -41,7 +41,7 @@ class DialogueBaseline:
     def _build_chain(self) -> Runnable[dict[str, Any], str]:
         return self.prompt_template | self.llm | StrOutputParser()
 
-    def process_dialogue(self, sessions: List[Session], query: str, iteration: int) -> str:
+    def process_dialogue(self, sessions: List[Session], query: str, iteration: int | None = None) -> str:
         context_messages = []
         for session in sessions:
             for message in session.messages:
@@ -54,11 +54,12 @@ class DialogueBaseline:
             self.completion_tokens += cb.completion_tokens
             self.total_cost += cb.total_cost
 
-        self.baseline_logger.log_iteration(
-            system_name=self.system_name,
-            query=query,
-            iteration=iteration,
-            sessions=sessions
-        )
+        if iteration is not None:
+            self.baseline_logger.log_iteration(
+                system_name=self.system_name,
+                query=query,
+                iteration=iteration,
+                sessions=sessions
+            )
 
         return result

@@ -4,7 +4,7 @@ name = "recapkt"
 version = "0.1.0"
 description = "A dialogue system for text summarization"
 authors = [
-    { name = "ArtemKushnir" },
+    { name = "Artem Kushnir" },
     { name = "Mikhail Kharlamov" }
 ]
 readme = "README.md"
