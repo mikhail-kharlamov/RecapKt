@@ -1,8 +1,10 @@
 import functools
+import os
 
 from abc import ABC, abstractmethod
 from typing import Any, Optional, Type
 
+from dotenv import load_dotenv
 from langchain_community.callbacks import get_openai_callback
 from langchain_core.embeddings import Embeddings
 from langchain_core.language_models import BaseChatModel
@@ -11,14 +13,21 @@ from langchain_openai import ChatOpenAI
 from langgraph.constants import END
 from langgraph.graph import StateGraph
 from langgraph.graph.state import CompiledStateGraph
+from pydantic import SecretStr
 
+from src.benchmarking.memory_logger import MemoryLogger
 from src.summarize_algorithms.core.graph_nodes import (
     UpdateState,
     generate_response_node,
     should_continue_memory_update,
     update_memory_node,
 )
-from src.summarize_algorithms.core.models import DialogueState, Session, WorkflowNode
+from src.summarize_algorithms.core.models import (
+    DialogueState,
+    OpenAIModels,
+    Session,
+    WorkflowNode,
+)
 from src.summarize_algorithms.core.prompts import RESPONSE_GENERATION_PROMPT
 from src.summarize_algorithms.core.response_generator import ResponseGenerator
 
@@ -32,7 +41,17 @@ class BaseDialogueSystem(ABC):
         embed_model: Optional[Embeddings] = None,
         max_session_id: int = 3,
     ) -> None:
-        self.llm = llm or ChatOpenAI(model="gpt-4.1-mini", temperature=0.0)
+        load_dotenv()
+
+        api_key: str | None = os.getenv("OPENAI_API_KEY")
+        if api_key is not None:
+            self.llm = llm or ChatOpenAI(
+                model=OpenAIModels.GPT_5_MINI.value,
+                api_key=SecretStr(api_key)
+            )
+        else:
+            raise ValueError("OPENAI_API_KEY environment variable is not loaded")
+
         self.summarizer = self._build_summarizer()
         self.response_generator = ResponseGenerator(
             self.llm, self._get_response_prompt_template()
@@ -46,6 +65,9 @@ class BaseDialogueSystem(ABC):
         self.prompt_tokens = 0
         self.completion_tokens = 0
         self.total_cost = 0.0
+
+        self.memory_logger = MemoryLogger()
+        self.iteration = 0
 
     @abstractmethod
     def _build_summarizer(self) -> Any:
@@ -101,4 +123,9 @@ class BaseDialogueSystem(ABC):
             self.prompt_tokens += cb.prompt_tokens
             self.completion_tokens += cb.completion_tokens
             self.total_cost += cb.total_cost
+
+        self.iteration += 1
+        system_name = self.__class__.__name__
+        self.memory_logger.log_iteration(system_name, query, self.state, self.iteration, sessions)
+
         return self.state if self.state is not None else initial_state
