@@ -1,15 +1,12 @@
-import os
-
 from abc import ABC, abstractmethod
 from enum import Enum
 from typing import Any, Generic, Optional, TypeVar
 
-from dotenv import load_dotenv
 from langchain_core.language_models import BaseChatModel
 from langchain_core.prompts import PromptTemplate
 from langchain_core.runnables import RunnableSerializable
 from langchain_openai import ChatOpenAI
-from pydantic import BaseModel, Field, SecretStr
+from pydantic import BaseModel, Field
 
 from src.benchmarking.prompts import (
     PAIRWISE_EVALUATION_AGENT_RESPONSE,
@@ -82,15 +79,7 @@ PairwiseResultType = TypeVar("PairwiseResultType", bound=BaseModel)
 
 class BaseLLMEvaluation(Generic[SingleResultType, PairwiseResultType], ABC):
     def __init__(self, llm: Optional[BaseChatModel] = None) -> None:
-        load_dotenv()
-
-        api_key: str | None = os.getenv("OPENAI_API_KEY")
-        if api_key is not None:
-            self.llm = llm or ChatOpenAI(
-                model=OpenAIModels.GPT_5_MINI.value,
-                api_key=SecretStr(api_key))
-        else:
-            raise ValueError("OPENAI_API_KEY environment variable is not loaded")
+        self.llm = llm or ChatOpenAI(model=OpenAIModels.GPT_4_1.value, temperature=0.0)
         self.single_eval_prompt = self._get_single_eval_prompt()
         self.pairwise_eval_prompt = self._get_pairwise_eval_prompt()
         self.single_eval_chain = self._build_single_eval_chain()

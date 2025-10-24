@@ -1,9 +1,7 @@
 import itertools
-import logging
 import random
 
 from dataclasses import dataclass, field
-from pathlib import Path
 
 from src.benchmarking.agent_chat.deserialize_agent_chat import ChatDataset
 from src.benchmarking.baseline import DialogueBaseline
@@ -38,8 +36,6 @@ class PairwiseResult:
 
 class CalculateAgentChatResponseMetrics:
     def __init__(self) -> None:
-        self.logger = logging.getLogger(__name__)
-
         self.dataset = ChatDataset.from_file()
         self.llm_scorer = LLMChatAgentEvaluation()
         self.message_count = 0
@@ -63,24 +59,20 @@ class CalculateAgentChatResponseMetrics:
             embed_code=True, embed_tool=True
         )
 
-        self.full_baseline = DialogueBaseline("FullBaseline")
-        self.last_baseline = DialogueBaseline("LastBaseline")
-
-        self.path_to_save = Path("/Users/mikhailkharlamov/Documents/RecapKt/src/benchmarking/agent_chat/results")
+        self.full_baseline = DialogueBaseline()
+        self.last_baseline = DialogueBaseline()
 
     def calculate(self) -> None:
         dialogue = self.dataset.sessions
         for i in range(len(dialogue)):
-            self.logger.info(f"Processing dialogue {i + 1}/{len(dialogue)}")
-            self._process(dialogue[: i + 1], i + 1)
+            print(f"Processing dialogue {i + 1}/{len(dialogue)}")
+            self._process(dialogue[: i + 1])
 
-    def _process(self, sessions: list[Session], iteration: int) -> None:
+    def _process(self, sessions: list[Session]) -> None:
         last_session = sessions[-1]
         query = ""
         for i in range(len(last_session.messages) - 1, -1, -1):
-            if last_session.messages[i].role == "USER" and last_session.messages[i].content != "":
-                self.logger.info(f"User founded {i}")
-                self.logger.info(f"User message: {last_session.messages[i].content}")
+            if last_session.messages[i].role == "user":
                 query = last_session.messages[i].content
                 break
 
@@ -88,57 +80,44 @@ class CalculateAgentChatResponseMetrics:
         for i in range(len(sessions)):
             dialogue_context += f"Session: {i}" + str(sessions[i]) + "\n\n"
 
-        self.logger.info("Started computing base recsum response")
         base_recsum_response = self.base_recsum.process_dialogue(
             sessions, query
         ).response
-        self.logger.info("Started computing rag recsum response")
         rag_recsum_response = self.rag_recsum.process_dialogue(sessions, query).response
-        self.logger.info("Started computing base memory bank response")
         base_memory_bank_response = self.base_memory_bank.process_dialogue(
             sessions, query
         ).response
-        self.logger.info("Started computing rag memory bank response")
         rag_memory_bank_response = self.rag_memory_bank.process_dialogue(
             sessions, query
         ).response
-        self.logger.info("Started computing full session baseline response")
         full_sessions_baseline_response = self.full_baseline.process_dialogue(
-            sessions, query, iteration
+            sessions, query
         )
-        self.logger.info("Started computing last session baseline response")
         last_session_baseline_response = self.last_baseline.process_dialogue(
-            [sessions[-1]], query, iteration
+            [sessions[-1]], query
         )
 
-        self.logger.info("Started computing base recsum single response score")
         base_recsum_single_score = self.llm_scorer.evaluate_single(
             dialogue_context=dialogue_context, assistant_answer=base_recsum_response
         )
-        self.logger.info("Started computing rag recsum single response score")
         rag_recsum_single_score = self.llm_scorer.evaluate_single(
             dialogue_context=dialogue_context, assistant_answer=rag_recsum_response
         )
-        self.logger.info("Started computing base memory bank single response score")
         base_memory_bank_single_score = self.llm_scorer.evaluate_single(
             dialogue_context=dialogue_context,
             assistant_answer=base_memory_bank_response,
         )
-        self.logger.info("Started computing rag memory bank single response score")
         rag_memory_bank_single_score = self.llm_scorer.evaluate_single(
             dialogue_context=dialogue_context, assistant_answer=rag_memory_bank_response
         )
-        self.logger.info("Started computing full session single response score")
         full_sessions_baseline_single_score = self.llm_scorer.evaluate_single(
             dialogue_context=dialogue_context,
             assistant_answer=full_sessions_baseline_response,
         )
-        self.logger.info("Started computing last session single response score")
         last_session_baseline_single_score = self.llm_scorer.evaluate_single(
             dialogue_context=dialogue_context,
             assistant_answer=last_session_baseline_response,
         )
-
 
         self._single_eval_update(
             self.base_recsum_single_result, base_recsum_single_score
@@ -170,7 +149,6 @@ class CalculateAgentChatResponseMetrics:
 
         random.shuffle(pairs)
 
-        self.logger.info("Started evaluate_pairwise")
         for var1, var2 in pairs:
             pairwise_score = self.llm_scorer.evaluate_pairwise(
                 dialogue_context=dialogue_context, first_answer=var1, second_answer=var2
@@ -189,8 +167,6 @@ class CalculateAgentChatResponseMetrics:
             alg2 = mapping[var2]
 
             for criterion in ["correctness", "clarity", "context_handling"]:
-                self.logger.info(f"Criterion: {criterion}")
-
                 result = getattr(pairwise_score, criterion)
 
                 if result == ComparisonResult.OPTION_1_BETTER:
@@ -299,11 +275,10 @@ class CalculateAgentChatResponseMetrics:
 def main() -> None:
     metric_calculator = CalculateAgentChatResponseMetrics()
 
-    logger = logging.getLogger()
-    logger.info("Starting Agent Chat metrics calculation...")
+    print("Starting Agent Chat metrics calculation...")
     metric_calculator.calculate()
 
-    logger.info("Calculation completed. Results:")
+    print("Calculation completed. Results:")
     metric_calculator.print_results()
 
 
