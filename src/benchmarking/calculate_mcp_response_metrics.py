@@ -3,7 +3,7 @@ import random
 from datetime import datetime
 from typing import Any
 
-from src.benchmarking.baseline import DialogueBaseline
+from src.benchmarking.agent.baseline import DialogueBaseline
 from src.benchmarking.llm_evaluation import LLMResponseEvaluation
 from src.benchmarking.metric_calculator import (
     CalculateMCPMetrics,

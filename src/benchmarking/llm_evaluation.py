@@ -87,7 +87,7 @@ class BaseLLMEvaluation(Generic[SingleResultType, PairwiseResultType], ABC):
         api_key: str | None = os.getenv("OPENAI_API_KEY")
         if api_key is not None:
             self.llm = llm or ChatOpenAI(
-                model=OpenAIModels.GPT_5_MINI.value,
+                model=OpenAIModels.GPT_4_O_MINI.value, #changed
                 api_key=SecretStr(api_key))
         else:
             raise ValueError("OPENAI_API_KEY environment variable is not loaded")

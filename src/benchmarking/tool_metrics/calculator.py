@@ -57,7 +57,7 @@ class Calculator:
                 sessions,
                 state,
                 algorithm_metrics,
-                subdirectory / algorithm.system_name
+                algorithm.system_name / subdirectory
             )
 
             metrics.append(record)

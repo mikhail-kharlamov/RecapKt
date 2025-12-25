@@ -166,3 +166,30 @@ class Loader:
                     )
                     blocks.append(block)
         return blocks
+
+
+if __name__ == "__main__":
+    json_file_template: str = "*.json"
+    path_data_type_1: Path = Path("/Users/mikhailkharlamov/Documents/.../data_type_1")
+    for file in path_data_type_1.glob(json_file_template):
+        print(file)
+        session = Loader.load_session_data_type_1(file)
+        print(len(session), "- session")
+        tools = []
+        for block in session:
+            if isinstance(block, ToolCallBlock):
+                tools.append(block)
+        print(len(tools), "- tools")
+        print(len(tools) / len(session))
+
+    path_data_type_2: Path = Path("/Users/mikhailkharlamov/Documents/.../data_type_2")
+    for file in path_data_type_2.glob(json_file_template):
+        print(file)
+        session = Loader.load_session_data_type_2(file)
+        print(len(session), "- session")
+        tools = []
+        for block in session:
+            if isinstance(block, ToolCallBlock):
+                tools.append(block)
+        print(len(tools), "- tools")
+        print(len(tools) / len(session))

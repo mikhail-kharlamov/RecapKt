@@ -1,15 +1,14 @@
-import json
+import hashlib
 import logging
 import random
 from collections import Counter
-from itertools import product
 from logging import Logger
 from math import fsum
 from pathlib import Path
 from typing import Any
 
 from src.benchmarking.base_logger import BaseLogger
-from src.benchmarking.models.dtos import StatisticsDto, BaseRecord, AlgorithmStatistics, MemoryRecord
+from src.benchmarking.models.dtos import StatisticsDto, BaseRecord, AlgorithmStatistics, AlgorithmRun
 from src.benchmarking.models.enums import MetricType
 from src.benchmarking.tool_metrics.calculator import Calculator
 from src.benchmarking.tool_metrics.evaluators.base_evaluator import BaseEvaluator
@@ -18,12 +17,15 @@ from src.summarize_algorithms.core.models import Session, BaseBlock
 
 
 class Statistics:
+    RUN_ID = "exp_11_12_2025_2_45_am"
+
     @staticmethod
     def calculate(
             count_of_launches: int,
             algorithms: list[Dialog],
             evaluator_functions: list[BaseEvaluator],
             sessions: list[Session],
+            count_of_sessions: int,
             gold_session: Session,
             prompt: str,
             reference: list[BaseBlock],
@@ -34,12 +36,17 @@ class Statistics:
     ) -> StatisticsDto:
         system_logger = logging.getLogger()
 
-        values_by_alg_metric: dict[tuple[str, MetricType], list[float]] = {}
+        values_by_alg_metric: dict[tuple[str, MetricType, int], list[float]] = {}
         for i in range(count_of_launches):
-            if shuffle:
-                random.shuffle(sessions)
+            if len(sessions) > 1 and shuffle:
+                rnd = random.Random(Statistics.__make_seed(count_of_launches, i))
+                ses_0 = sessions[0]
+                rnd.shuffle(sessions)
+                print(sessions.index(ses_0))
             prepared_sessions: list[Session] = sessions.copy()
+            prepared_sessions = prepared_sessions[:(count_of_sessions - 1)]
             prepared_sessions.append(gold_session)
+            print("Количество сессий: ", len(prepared_sessions))
 
             system_logger.info(f"Starting evaluation launch {i}")
             metrics: list[BaseRecord] = Calculator.evaluate(
@@ -58,7 +65,7 @@ class Statistics:
                 if record.metric is None:
                     continue
                 for metric_state in record.metric:
-                    key = (record.system, metric_state.metric_name)
+                    key = (record.system, metric_state.metric_name, len(prepared_sessions))
                     if key not in values_by_alg_metric:
                         values_by_alg_metric[key] = []
                     values_by_alg_metric[key].append(float(metric_state.metric_value))
@@ -71,13 +78,13 @@ class Statistics:
             metrics: list[BaseRecord],
             system_logger: logging.Logger = logging.getLogger()
     ) -> StatisticsDto:
-        values_by_alg_metric: dict[tuple[str, MetricType], list[float]] = {}
+        values_by_alg_metric: dict[tuple[str, MetricType, int], list[float]] = {}
         for _ in range(count_of_launches):
             for record in metrics:
                 if record.metric is None:
                     continue
                 for metric_state in record.metric:
-                    key = (record.system, metric_state.metric_name)
+                    key = (record.system, metric_state.metric_name, len(record.sessions))
                     if key not in values_by_alg_metric:
                         values_by_alg_metric[key] = []
                     values_by_alg_metric[key].append(float(metric_state.metric_value))
@@ -85,10 +92,14 @@ class Statistics:
         return Statistics.__get_statistic_metrics(count_of_launches, system_logger, values_by_alg_metric)
 
     @staticmethod
-    def __get_statistic_metrics(count_of_launches, system_logger, values_by_alg_metric):
+    def __get_statistic_metrics(
+            count_of_launches: int,
+            system_logger: Logger,
+            values_by_alg_metric: dict[tuple[str, MetricType, int], list[float]]
+    ):
         algorithm_stats: list[AlgorithmStatistics] = []
         system_logger.info("Getting statistics...")
-        for (alg_name, metric_type), values in values_by_alg_metric.items():
+        for (alg_name, metric_type, count_of_sessions), values in values_by_alg_metric.items():
             system_logger.info(f"Getting {alg_name} {metric_type.value} statistics")
             n = len(values)
             if n == 0:
@@ -104,7 +115,16 @@ class Statistics:
                     metric=metric_type,
                     count_of_launches=count_of_launches,
                     mean=mean,
-                    variance=variance
+                    variance=variance,
+                    runs=[
+                        AlgorithmRun(
+                            algorithm=alg_name,
+                            metric=metric_type,
+                            value=value,
+                            sessions=count_of_sessions,
+                        )
+                        for value in values
+                    ]
                 )
             )
         return StatisticsDto(
@@ -145,3 +165,8 @@ class Statistics:
             print(f"  Math. expectation: {alg_stat.mean:.4f}")
             print(f"  Variance: {alg_stat.variance:.4f}")
             print()
+
+    @staticmethod
+    def __make_seed(count_of_iterations: int, iteration: int) -> int:
+        h = hashlib.sha256(f"{Statistics.RUN_ID}:{count_of_iterations}:{iteration}".encode("utf-8")).hexdigest()
+        return int(h[:16], 16)

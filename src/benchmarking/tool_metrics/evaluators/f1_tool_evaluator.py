@@ -1,6 +1,7 @@
 import json
-from typing import Any
+from typing import Any, Optional
 
+from src.benchmarking.models.enums import MetricType
 from src.benchmarking.tool_metrics.evaluators.base_evaluator import BaseEvaluator
 from src.summarize_algorithms.core.models import Session, DialogueState, BaseBlock, ToolCallBlock
 from src.benchmarking.models.dtos import MetricState
@@ -27,21 +28,40 @@ class F1ToolEvaluator(BaseEvaluator):
             )
         )
 
-        predicted_tools: set[str] = set(
-            map(
-                lambda x: x.get("name", ""),
-                filter(
-                    lambda x: x.get("kind", "") == "tool_call" and any(
-                        [
-                            F1ToolEvaluator.__compare_arguments_for_null(x.get("args", {}), json.loads(r.arguments))
+        if self._tool == "st":
+            print("st!")
+            predicted_tools: set[str] = set(
+                map(
+                    lambda x: x.get("name", ""),
+                    filter(
+                        lambda x: x.get("kind", "") == "tool_call" and any(
+                          [
+                            F1ToolEvaluator.__compare_arguments(x.get("args", {}), json.loads(r.arguments))
                             for r in reference
-                            if isinstance(r, ToolCallBlock)
-                        ]
-                    ),
-                    state.response.get("plan_steps", [])
+                            if isinstance(r, ToolCallBlock) and r.name.lower() == x.get("name", "") #changed logic
+                          ]
+                        ),
+                        state.response.get("plan_steps", [])
+                    )
                 )
             )
-        )
+        else:
+            print("not st(")
+            predicted_tools: set[str] = set(
+                map(
+                    lambda x: x.get("name", ""),
+                    filter(
+                        lambda x: x.get("kind", "") == "tool_call", #and any(
+                            #[
+                            #    F1ToolEvaluator.__compare_arguments_for_null(x.get("args", {}), json.loads(r.arguments))
+                            #    for r in reference
+                            #    if isinstance(r, ToolCallBlock) and r.name.lower() == x.get("name", "") #changed logic
+                            #]
+                        #),
+                        state.response.get("plan_steps", [])
+                    )
+                )
+            )
 
         true_positives = len(predicted_tools.intersection(reference_tools))
         false_positives = len(predicted_tools.difference(reference_tools))
@@ -50,7 +70,10 @@ class F1ToolEvaluator(BaseEvaluator):
         f1_score = F1ToolEvaluator.__calculate_f1(true_positives, false_positives, false_negatives)
 
         return MetricState(
-            metric_name="F1_TOOL",
+            metric_name=MetricType("F1_TOOL"),
+            metric_value=f1_score
+        ) if self._tool != "st" else MetricState(
+            metric_name=MetricType("F1_TOOL_STRICT"),
             metric_value=f1_score
         )
 
@@ -69,11 +92,29 @@ class F1ToolEvaluator(BaseEvaluator):
         return f1_score
 
     @staticmethod
-    def __compare_arguments_for_null(first_argument: dict[str, Any], second_argument: dict[str, Any]) -> bool:
+    def __compare_arguments(
+            first_response_arguments: dict[str, Any],
+            second_response_arguments: dict[str, Any]
+    ) -> bool:
+        """
+        Compares two sets of tool call arguments.
+        :return: bool: True if args and values are similar, False otherwise.
+        """
+        compare = {
+            key for key, value in first_response_arguments.items()
+            if value == second_response_arguments.get(key)
+        }
+        return len(compare) == len(first_response_arguments.keys()) == len(second_response_arguments.keys())
+
+    @staticmethod
+    def __compare_arguments_for_null(
+            first_response_arguments: dict[str, Any],
+            second_response_arguments: dict[str, Any]
+    ) -> bool:
         """
         Compares the positions of null arguments in two sets of tool call arguments.
         :return: bool: True if null positions are equal in both arguments, False otherwise.
         """
-        first_null_positions = {key for key, value in first_argument.items() if value is None}
-        second_null_positions = {key for key, value in second_argument.items() if value is None}
+        first_null_positions = {key for key, value in first_response_arguments.items() if value is None}
+        second_null_positions = {key for key, value in second_response_arguments.items() if value is None}
         return first_null_positions == second_null_positions

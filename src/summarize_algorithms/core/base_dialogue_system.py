@@ -53,7 +53,7 @@ class BaseDialogueSystem(ABC, Dialog):
         api_key: str | None = os.getenv("OPENAI_API_KEY")
         if api_key is not None:
             self.llm = llm or ChatOpenAI(
-                model=OpenAIModels.GPT_5_MINI.value,
+                model=OpenAIModels.GPT_4_O_MINI.value,
                 api_key=SecretStr(api_key)
             )
         else:

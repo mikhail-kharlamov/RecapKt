@@ -2,12 +2,14 @@ import os
 
 from typing import Any, List, Optional
 
+import tiktoken
 from dotenv import load_dotenv
 from langchain_community.callbacks import get_openai_callback
 from langchain_core.language_models import BaseChatModel
 from langchain_core.output_parsers import StrOutputParser
 from langchain_core.runnables import Runnable
 from langchain_openai import ChatOpenAI
+from pandas.conftest import compression
 from pydantic import SecretStr
 
 from src.benchmarking.baseline_logger import BaselineLogger
@@ -25,7 +27,7 @@ class DialogueBaseline(Dialog):
         api_key: str | None = os.getenv("OPENAI_API_KEY")
         if api_key is not None:
             self.llm = llm or ChatOpenAI(
-                model=OpenAIModels.GPT_5_MINI.value,
+                model=OpenAIModels.GPT_4_O_MINI.value,
                 api_key=SecretStr(api_key)
             )
         else:
@@ -70,9 +72,14 @@ class DialogueBaseline(Dialog):
             },
         }
 
+    @staticmethod
+    def _compress(sessions: list[Session]) -> list[Session]:
+        return sessions
+
+
     def process_dialogue(
             self,
-            sessions: List[Session],
+            sessions: list[Session],
             query: str,
             structure: dict[str, Any] | None = None,
             tools: list[dict[str, Any]] | None = None,
@@ -82,11 +89,20 @@ class DialogueBaseline(Dialog):
         else:
             chain = self.chain
 
+        compressed_sessions: list[Session] = self._compress(sessions)
+
         context_messages = []
-        for session in sessions:
+        for session in compressed_sessions:
             for message in session.messages:
                 context_messages.append(f"{message.role}: {message.content}")
         context = "\n".join(context_messages)
+
+        encoding = tiktoken.get_encoding("o200k_base")
+        tokens = encoding.encode(context)
+        if len(tokens) > 100000:
+            tokens = tokens[::-1][:100000][::-1]
+            context = encoding.decode(tokens)
+
         with get_openai_callback() as cb:
             result = chain.invoke({"context": context, "query": query})
 
@@ -95,7 +111,7 @@ class DialogueBaseline(Dialog):
             self.total_cost += cb.total_cost
 
         return DialogueState(
-            dialogue_sessions=sessions,
+            dialogue_sessions=compressed_sessions,
             query=query,
             _response=result,
             code_memory_storage=None,

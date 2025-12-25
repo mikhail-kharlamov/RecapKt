@@ -1,19 +1,22 @@
 import json
 import logging
-from datetime import datetime
 from pathlib import Path
 from typing import Any
 
 import tiktoken
 from jinja2 import Environment, FileSystemLoader
 
-from src.benchmarking.baseline import DialogueBaseline
+from src.benchmarking.agent.baseline import DialogueBaseline
 from src.benchmarking.baseline_logger import BaselineLogger
 from src.benchmarking.memory_logger import MemoryLogger
+from src.benchmarking.models.enums import MetricType
 from src.benchmarking.tool_metrics.evaluators.f1_tool_evaluator import F1ToolEvaluator
+from src.benchmarking.tool_metrics.graphs.general_trends import GeneralTrends
+from src.benchmarking.tool_metrics.graphs.graph_builder import GraphBuilder
 from src.benchmarking.tool_metrics.load_session import Loader
-from src.benchmarking.models.dtos import QueryAndReference, StatisticsDto, BaseRecord, MemoryRecord, TokenInfo
-from src.benchmarking.tool_metrics.statistics import Statistics
+from src.benchmarking.models.dtos import QueryAndReference, StatisticsDto, BaseRecord, MemoryRecord, TokenInfo, \
+    MODEL_PRICES, AlgorithmStatistics
+from src.benchmarking.tool_metrics.statistics_calc import Statistics
 from src.summarize_algorithms.core.models import BaseBlock, Session, OpenAIModels
 from src.summarize_algorithms.memory_bank.dialogue_system import (
     MemoryBankDialogueSystem,
@@ -31,87 +34,105 @@ class Runner:
             trim_blocks=True
         )
 
-    def run(self) -> None:
+    def run(self, name: str) -> None:
         memory_logger = MemoryLogger()
         baseline_logger = BaselineLogger()
 
-        base_recsum = RecsumDialogueSystem(embed_code=False, embed_tool=False, system_name="BaseRecsum")
-        base_memory_bank = MemoryBankDialogueSystem(embed_code=False, embed_tool=False, system_name="BaseMemoryBank")
-        rag_recsum = RecsumDialogueSystem(embed_code=True, embed_tool=True, system_name="RagRecsum")
-        rag_memory_bank = MemoryBankDialogueSystem(embed_code=True, embed_tool=True, system_name="RagMemoryBank")
-        full_baseline = DialogueBaseline("FullBaseline")
-        last_baseline = DialogueBaseline("LastBaseline")
-
-        algorithms_with_memory = [
-            base_recsum,
-            base_memory_bank,
-            rag_recsum,
-            rag_memory_bank
-        ]
-        baseline_algorithms = [
-            full_baseline,
-            last_baseline
-        ]
+        if name == "base_recsum":
+            algorithm = RecsumDialogueSystem(embed_code=False, embed_tool=False, system_name="BaseRecsum")
+        elif name == "base_memory_bank":
+            algorithm = MemoryBankDialogueSystem(embed_code=False, embed_tool=False, system_name="BaseMemoryBank")
+        elif name == "rag_recsum":
+            algorithm = RecsumDialogueSystem(embed_code=True, embed_tool=True, system_name="RagRecsum")
+        elif name == "rag_memory_bank":
+            algorithm = MemoryBankDialogueSystem(embed_code=True, embed_tool=True, system_name="RagMemoryBank")
+        elif name == "full_baseline":
+            algorithm = DialogueBaseline("FullBaseline")
+        else:
+            algorithm = DialogueBaseline("LastBaseline")
 
         self.logger.info("Start parsing session")
         past_interactions: list[Session] = []
 
         json_file_template: str = "*.json"
-        path_data_type_1: Path = Path("/Users/mikhailkharlamov/Documents/.../data_type_1")
+        path_data_type_1: Path = Path("/Users/mikhailkharlamov/Documents/.../NewDataSet/data_type_1")
         for file in path_data_type_1.glob(json_file_template):
             past_interactions.append(
                 Loader.load_session_data_type_1(file)
             )
 
-        path_data_type_2: Path = Path("/Users/mikhailkharlamov/Documents/.../data_type_2")
+        path_data_type_2: Path = Path("/Users/mikhailkharlamov/Documents/.../NewDataSet/data_type_2")
         for file in path_data_type_2.glob(json_file_template):
             past_interactions.append(
                 Loader.load_session_data_type_2(file)
             )
 
-        gold_session: Session = Loader.load_session_data_type_2(
-            "/Users/mikhailkharlamov/Documents/.../gold_session.json"
+        gold_session: Session = Loader.load_session_data_type_1(
+            "/Users/mikhailkharlamov/Documents/.../NewDataSet/gold_session.json"
         )
 
         query_and_reference = self.__execute_query_and_reference(gold_session)
         query, reference = query_and_reference.query, query_and_reference.reference
         prompt = self.__prepare_query_for_the_first_stage(query)
 
+        f1_tool_evaluator_strict = F1ToolEvaluator("st")
         f1_tool_evaluator = F1ToolEvaluator()
 
-        subdirectory: Path = Path(datetime.now().isoformat())
+        #1, 3, 5, 7, 9, 11,
+        for count_of_sessions in [1, 3, 5, 7, 9, 11, 13, 15]:
+            subdirectory: Path = Path(str(count_of_sessions))
 
-        self.logger.info("Start evaluating baseline statistics")
-        baseline_statistics: StatisticsDto = Statistics.calculate(
-            10,
-            baseline_algorithms,
-            [f1_tool_evaluator],
-            past_interactions,
-            gold_session,
-            prompt,
-            reference,
-            baseline_logger,
-            None,
-            subdirectory,
-            True
-        )
-
-        self.logger.info("Start evaluating memory statistics")
-        memory_statistics: StatisticsDto = Statistics.calculate(
-            10,
-            algorithms_with_memory,
-            [f1_tool_evaluator],
-            past_interactions,
-            gold_session,
-            prompt,
-            reference,
-            memory_logger,
-            None,
-            subdirectory
-        )
+            if name == "full_baseline":
+                self.logger.info("Start evaluating full baseline statistics")
+                statistics: StatisticsDto = Statistics.calculate(
+                    5,
+                    [algorithm],
+                    [f1_tool_evaluator, f1_tool_evaluator_strict],
+                    past_interactions,
+                    count_of_sessions,
+                    gold_session,
+                    prompt,
+                    reference,
+                    baseline_logger,
+                    None,
+                    subdirectory,
+                    True
+                )
+            elif name == "last_baseline":
+                self.logger.info("Start evaluating last baseline statistics")
+                statistics: StatisticsDto = Statistics.calculate(
+                    5,
+                    [algorithm],
+                    [f1_tool_evaluator, f1_tool_evaluator_strict],
+                    [],
+                    count_of_sessions,
+                    gold_session,
+                    prompt,
+                    reference,
+                    baseline_logger,
+                    None,
+                    subdirectory,
+                    True
+                )
+            else:
+                self.logger.info("Start evaluating memory statistics")
+                statistics: StatisticsDto = Statistics.calculate(
+                    5,
+                    [algorithm],
+                    [f1_tool_evaluator, f1_tool_evaluator_strict],
+                    past_interactions,
+                    count_of_sessions,
+                    gold_session,
+                    prompt,
+                    reference,
+                    memory_logger,
+                    None,
+                    subdirectory,
+                    True
+                )
 
         Statistics.print_statistics(
-            StatisticsDto(algorithms=[*baseline_statistics.algorithms, *memory_statistics.algorithms])
+            statistics
         )
 
     @staticmethod
@@ -142,7 +163,21 @@ class Runner:
 
     @staticmethod
     def get_spent_tokens_count(logs: BaseRecord, model: OpenAIModels) -> TokenInfo:
-        ...
+        prompt = str(logs.query)
+        response = str(logs.response)
+        input_tokens = Runner.__count_tokens(prompt)
+        output_tokens = Runner.__count_tokens(response)
+        input_price = input_tokens * MODEL_PRICES[model].input_per_million / 1_000_000
+        output_price = output_tokens * MODEL_PRICES[model].output_per_million / 1_000_000
+        return TokenInfo(
+            model=model,
+            price=MODEL_PRICES[model],
+            input_tokens=input_tokens,
+            output_tokens=output_tokens,
+            input_price=input_price,
+            output_price=output_price,
+            total_price=input_price + output_price
+        )
 
     def __execute_query_and_reference(self, past_interactions: Session) -> QueryAndReference:
         reference: list[BaseBlock] = []
@@ -165,6 +200,85 @@ class Runner:
             reference=reference
         )
 
+    @staticmethod
+    def tokens():
+        Statistics.print_statistics(
+            Runner.get_statistics_by_directory_with_logs("logs/memory/2025-11-15T21:57:10.007355")
+        )
+
+        path = Path(
+            "/Users/mikhailkharlamov/Documents/.../RecapKt/src/benchmarking/tool_metrics/logs/memory/2025-11-18T17:40:37.936141")
+        for directory in [
+            "BaseMemoryBank",
+            "BaseRecsum",
+            "FullBaseline",
+            "LastBaseline",
+            "RagMemoryBank",
+            "RagRecsum"
+        ]:
+            folder = path / directory
+            ps = []
+            for p in folder.glob("*.json"):
+                ps.append(p)
+            ps.sort()
+
+            for i in range(len(ps)):
+                print(i)
+                p = ps[i]
+                with p.open("r", encoding="utf-8") as f:
+                    d = json.load(f)
+                if d.get("memory") is None:
+                    record = BaseRecord.from_dict(d)
+                else:
+                    record = MemoryRecord.from_dict(d)
+                tokens_info = Runner.get_spent_tokens_count(record, OpenAIModels.GPT_4_O_MINI)
+                p_n = p.resolve().parent / f"{p.stem}_tokens.json"
+                with p_n.open("w", encoding="utf-8") as f:
+                    json.dump(tokens_info.to_dict(encode_json=True), f, indent=4)
+
+    @staticmethod
+    def build_graph(
+            graph_types: list[type[GraphBuilder]],
+            directories: list[Path | str],
+    ):
+        algs: list[AlgorithmStatistics] = []
+        for fold in [1, 3, 5, 7, 9, 11, 13, 15]:
+            ps: list[Path] = []
+            path = Path(
+                "/Users/mikhailkharlamov/Documents/.../RecapKt/src/benchmarking/tool_metrics/logs/memory")
+            for directory in directories:
+                folder = path / directory / f"{fold}"
+                for p in folder.glob("*.json"):
+                    ps.append(p)
+                ps.sort()
+
+            r: list[BaseRecord] = []
+            for p in ps:
+                with p.open("r", encoding="utf8") as f:
+                    j = json.load(f)
+                    if "memory" in j:
+                        data = MemoryRecord.from_dict(j)
+                    else:
+                        data = BaseRecord.from_dict(j)
+                    r.append(data)
+
+            stats = Statistics.calculate_by_logs(fold, r)
+            algs.extend(stats.algorithms)
+            Statistics.print_statistics(stats)
+            #for graph in graph_types:
+            #    graph.build(stats, "", f". {fold}")
+        f1_algs = []
+        f1_strict = []
+        for graph in graph_types:
+            for alg in algs:
+                if alg.metric == MetricType.F1_TOOL:
+                    f1_algs.append(alg)
+                else:
+                    f1_strict.append(alg)
+
+            graph.build(StatisticsDto(algorithms=f1_algs), "", " lax")
+            graph.build(StatisticsDto(algorithms=f1_strict), "", " strict")
+
     def __prepare_query_for_the_first_stage(self, query: BaseBlock) -> str:
         template = self.env.get_template("first_stage.j2")
         rendered_prompt = template.render(query=query.content)
@@ -180,8 +294,8 @@ class Runner:
             print("\n")
 
     @staticmethod
-    def __count_tokens(text: str, model: OpenAIModels) -> int:
-        encoding = tiktoken.encoding_for_model(model.value)
+    def __count_tokens(text: str) -> int:
+        encoding = tiktoken.get_encoding("o200k_base")
         tokens = encoding.encode(text)
         return len(tokens)
 
@@ -189,9 +303,34 @@ class Runner:
 if __name__ == "__main__":
     configure_logs(loglevel=logging.INFO)
 
-    """Statistics.print_statistics(
-        Runner.get_statistics_by_directory_with_logs("logs/memory/2025-11-15T21:57:10.007355")
-    )"""
+    """runner = Runner()
 
-    runner = Runner()
-    runner.run()
+
+    print(sys.argv)
+    runner.run(sys.argv[1])"""
+
+    Runner.build_graph(
+        [GeneralTrends],
+        [
+            "BaseMemoryBank",
+            "BaseRecsum",
+            "FullBaseline",
+            "LastBaseline",
+            "RagMemoryBank",
+            "RagRecsum",
+        ],
+    )
+    """for directory in [
+            "BaseMemoryBank",
+            "BaseRecsum",
+            "FullBaseline",
+            "LastBaseline",
+            "RagMemoryBank",
+            "RagRecsum",
+        ]:
+        Runner.build_graph(
+            [TrendsWithQuantiles],
+            [directory],
+        )"""
+
+
