@@ -1,7 +1,7 @@
 import json
 import logging
 from pathlib import Path
-from typing import Any
+from typing import Any, Optional
 
 import tiktoken
 from jinja2 import Environment, FileSystemLoader
@@ -14,7 +14,7 @@ from src.benchmarking.tool_metrics.evaluators.f1_tool_evaluator import F1ToolEva
 from src.benchmarking.tool_metrics.graphs.general_trends import GeneralTrends
 from src.benchmarking.tool_metrics.graphs.graph_builder import GraphBuilder
 from src.benchmarking.tool_metrics.load_session import Loader
-from src.benchmarking.models.dtos import QueryAndReference, StatisticsDto, BaseRecord, MemoryRecord, TokenInfo, \
+from src.benchmarking.models.dtos import DividedSession, StatisticsDto, BaseRecord, MemoryRecord, TokenInfo, \
     MODEL_PRICES, AlgorithmStatistics
 from src.benchmarking.tool_metrics.statistics_calc import Statistics
 from src.summarize_algorithms.core.models import BaseBlock, Session, OpenAIModels
@@ -71,9 +71,9 @@ class Runner:
             "/Users/mikhailkharlamov/Documents/.../NewDataSet/gold_session.json"
         )
 
-        query_and_reference = self.__execute_query_and_reference(gold_session)
-        query, reference = query_and_reference.query, query_and_reference.reference
-        prompt = self.__prepare_query_for_the_first_stage(query)
+        divided_session: DividedSession = self.__divide_session(gold_session)
+        reference, session = divided_session.reference, divided_session.past_interactions
+        prompt = self.__prepare_system_prompt()
 
         f1_tool_evaluator_strict = F1ToolEvaluator("st")
         f1_tool_evaluator = F1ToolEvaluator()
@@ -90,7 +90,7 @@ class Runner:
                     [f1_tool_evaluator, f1_tool_evaluator_strict],
                     past_interactions,
                     count_of_sessions,
-                    gold_session,
+                    Session(session),
                     prompt,
                     reference,
                     baseline_logger,
@@ -106,7 +106,7 @@ class Runner:
                     [f1_tool_evaluator, f1_tool_evaluator_strict],
                     [],
                     count_of_sessions,
-                    gold_session,
+                    Session(session),
                     prompt,
                     reference,
                     baseline_logger,
@@ -122,7 +122,7 @@ class Runner:
                     [f1_tool_evaluator, f1_tool_evaluator_strict],
                     past_interactions,
                     count_of_sessions,
-                    gold_session,
+                    Session(session),
                     prompt,
                     reference,
                     memory_logger,
@@ -179,25 +179,31 @@ class Runner:
             total_price=input_price + output_price
         )
 
-    def __execute_query_and_reference(self, past_interactions: Session) -> QueryAndReference:
+    def __divide_session(self, session: Session) -> DividedSession:
+        past_interactions: list[BaseBlock] = []
         reference: list[BaseBlock] = []
-        query: BaseBlock | None = None
-        for i in range(len(past_interactions.messages) - 1, -1, -1):
-            if past_interactions.messages[i].role == "USER" and past_interactions.messages[i].content != "":
+        query: Optional[BaseBlock] = None
+        is_query_found: bool = False
+        for i in range(len(session.messages) - 1, -1, -1):
+            if is_query_found:
+                past_interactions.append(session.messages[i])
+            elif session.messages[i].role == "USER" and session.messages[i].content != "":
                 self.logger.info(f"User founded {i}")
-                self.logger.info(f"User message: {past_interactions.messages[i].content}")
-                query = past_interactions.messages[i]
-                break
+                self.logger.info(f"User message: {session.messages[i].content}")
+                query = session.messages[i]
+                is_query_found = True
             else:
-                reference.append(past_interactions.messages[i])
+                reference.append(session.messages[i])
 
         assert query is not None, "User's query is not founded."
 
         reference = reference[::-1]
+        past_interactions = past_interactions[::-1]
+        past_interactions.append(query)
 
-        return QueryAndReference(
-            query=query,
-            reference=reference
+        return DividedSession(
+            reference=reference,
+            past_interactions=past_interactions,
         )
 
     @staticmethod
@@ -279,9 +285,9 @@ class Runner:
             graph.build(StatisticsDto(algorithms=f1_algs), "", " lax")
             graph.build(StatisticsDto(algorithms=f1_strict), "", " strict")
 
-    def __prepare_query_for_the_first_stage(self, query: BaseBlock) -> str:
+    def __prepare_system_prompt(self) -> str:
         template = self.env.get_template("first_stage.j2")
-        rendered_prompt = template.render(query=query.content)
+        rendered_prompt = template.render()
         return rendered_prompt
 
     @staticmethod

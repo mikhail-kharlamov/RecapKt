@@ -9,7 +9,7 @@ class Dialog(Protocol):
     def process_dialogue(
             self,
             sessions: list[Session],
-            query: str,
+            system_prompt: str,
             structure: dict[str, Any] | None = None,
             tools: list[dict[str, Any]] | None = None
     ) -> DialogueState:

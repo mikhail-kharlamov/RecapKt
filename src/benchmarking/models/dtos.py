@@ -9,9 +9,9 @@ from src.summarize_algorithms.core.models import BaseBlock, OpenAIModels
 
 
 @dataclass
-class QueryAndReference:
-    query: BaseBlock
+class DividedSession:
     reference: list[BaseBlock]
+    past_interactions: list[BaseBlock]
 
 
 @dataclass

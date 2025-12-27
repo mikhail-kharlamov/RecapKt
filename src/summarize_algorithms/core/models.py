@@ -1,8 +1,10 @@
+import json
 from dataclasses import dataclass, field
 from enum import Enum
 from typing import Any, Iterator, Optional
 
 from dataclasses_json import dataclass_json
+from langchain_core.messages import AIMessage, ToolMessage, HumanMessage, SystemMessage, BaseMessage
 
 
 class OpenAIModels(Enum):
@@ -87,6 +89,41 @@ class Session:
                     "content": msg.content,
                 })
         return {"messages": result_messages}
+
+    def to_langchain_messages(self) -> list[BaseMessage]:
+        langchain_messages: list[BaseMessage] = []
+        for msg in self.messages:
+            if isinstance(msg, CodeBlock):
+                langchain_messages.append(AIMessage(content=msg.code))
+
+            elif isinstance(msg, ToolCallBlock):
+
+                ai_tool_call = {
+                    "name": msg.name,
+                    "args": json.loads(msg.arguments) if isinstance(msg.arguments, str) else msg.arguments,
+                    "id": msg.id
+                }
+
+                langchain_messages.append(AIMessage(
+                    content="",
+                    tool_calls=[ai_tool_call]
+                ))
+
+                langchain_messages.append(ToolMessage(
+                    content=msg.response,
+                    tool_call_id=msg.id,
+                    name=msg.name
+                ))
+
+            else:
+                if msg.role.lower() in ["user", "human"]:
+                    langchain_messages.append(HumanMessage(content=msg.content))
+                elif msg.role.lower() in ["system"]:
+                    langchain_messages.append(SystemMessage(content=msg.content))
+                else:
+                    langchain_messages.append(AIMessage(content=msg.content))
+
+        return langchain_messages
 
     def get_messages_by_role(self, role: str) -> list[BaseBlock]:
         return [msg for msg in self.messages if msg.role == role]

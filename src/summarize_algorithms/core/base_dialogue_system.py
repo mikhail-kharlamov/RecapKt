@@ -128,7 +128,7 @@ class BaseDialogueSystem(ABC, Dialog):
     def process_dialogue(
             self,
             sessions: list[Session],
-            query: str,
+            system_prompt: str,
             structure: dict[str, Any] | None = None,
             tools: list[dict[str, Any]] | None = None
     ) -> DialogueState:
@@ -137,7 +137,7 @@ class BaseDialogueSystem(ABC, Dialog):
         else:
             graph = self.graph
 
-        initial_state = self._get_initial_state(sessions, query)
+        initial_state = self._get_initial_state(sessions, system_prompt)
         with get_openai_callback() as cb:
             self.state = self._get_dialogue_state_class(
                 **graph.invoke(initial_state)
