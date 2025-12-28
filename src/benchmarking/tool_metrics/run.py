@@ -6,7 +6,7 @@ from typing import Any, Optional
 import tiktoken
 from jinja2 import Environment, FileSystemLoader
 
-from src.benchmarking.agent.baseline import DialogueBaseline
+from src.benchmarking.agent.dialogue_baseline import DialogueBaseline
 from src.benchmarking.baseline_logger import BaselineLogger
 from src.benchmarking.memory_logger import MemoryLogger
 from src.benchmarking.models.enums import MetricType

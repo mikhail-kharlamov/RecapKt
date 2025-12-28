@@ -14,11 +14,11 @@ from pydantic import SecretStr
 
 from src.benchmarking.baseline_logger import BaselineLogger
 from src.benchmarking.prompts import BASELINE_PROMPT
-from src.summarize_algorithms.core.dialog import Dialog
+from src.summarize_algorithms.core.dialogue import Dialogue
 from src.summarize_algorithms.core.models import DialogueState, OpenAIModels, Session, BaseBlock
 
 
-class DialogueBaseline(Dialog):
+class DialogueBaseline(Dialogue):
     def __init__(self, system_name: str, llm: Optional[BaseChatModel] = None) -> None:
         load_dotenv()
 

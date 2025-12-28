@@ -16,7 +16,7 @@ from langgraph.graph.state import CompiledStateGraph
 from pydantic import SecretStr
 
 from src.benchmarking.memory_logger import MemoryLogger
-from src.summarize_algorithms.core.dialog import Dialog
+from src.summarize_algorithms.core.dialogue import Dialogue
 from src.summarize_algorithms.core.graph_nodes import (
     UpdateState,
     generate_response_node,
@@ -33,7 +33,7 @@ from src.summarize_algorithms.core.prompts import RESPONSE_GENERATION_PROMPT
 from src.summarize_algorithms.core.response_generator import ResponseGenerator
 
 
-class BaseDialogueSystem(ABC, Dialog):
+class BaseDialogueSystem(ABC, Dialogue):
     def __init__(
         self,
         llm: Optional[BaseChatModel] = None,

@@ -12,7 +12,7 @@ from src.benchmarking.models.dtos import StatisticsDto, BaseRecord, AlgorithmSta
 from src.benchmarking.models.enums import MetricType
 from src.benchmarking.tool_metrics.calculator import Calculator
 from src.benchmarking.tool_metrics.evaluators.base_evaluator import BaseEvaluator
-from src.summarize_algorithms.core.dialog import Dialog
+from src.summarize_algorithms.core.dialogue import Dialogue
 from src.summarize_algorithms.core.models import Session, BaseBlock
 
 
@@ -22,7 +22,7 @@ class Statistics:
     @staticmethod
     def calculate(
             count_of_launches: int,
-            algorithms: list[Dialog],
+            algorithms: list[Dialogue],
             evaluator_functions: list[BaseEvaluator],
             sessions: list[Session],
             count_of_sessions: int,

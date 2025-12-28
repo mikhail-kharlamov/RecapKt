@@ -3,7 +3,7 @@ from typing import Any, Protocol
 from src.summarize_algorithms.core.models import DialogueState, Session
 
 
-class Dialog(Protocol):
+class Dialogue(Protocol):
     system_name: str
 
     def process_dialogue(
