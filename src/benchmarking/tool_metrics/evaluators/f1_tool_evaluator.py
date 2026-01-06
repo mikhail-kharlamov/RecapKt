@@ -1,10 +1,16 @@
 import json
-from typing import Any, Optional
 
+from typing import Any
+
+from src.benchmarking.models.dtos import MetricState
 from src.benchmarking.models.enums import MetricType
 from src.benchmarking.tool_metrics.evaluators.base_evaluator import BaseEvaluator
-from src.summarize_algorithms.core.models import Session, DialogueState, BaseBlock, ToolCallBlock
-from src.benchmarking.models.dtos import MetricState
+from src.summarize_algorithms.core.models import (
+    BaseBlock,
+    DialogueState,
+    Session,
+    ToolCallBlock,
+)
 
 
 class F1ToolEvaluator(BaseEvaluator):
@@ -28,8 +34,8 @@ class F1ToolEvaluator(BaseEvaluator):
             )
         )
 
-        if self._tool == "st":
-            print("st!")
+        if self._tool == "strict":
+            print("strict!")
             predicted_tools: set[str] = set(
                 map(
                     lambda x: x.get("name", ""),
@@ -46,7 +52,7 @@ class F1ToolEvaluator(BaseEvaluator):
                 )
             )
         else:
-            print("not st(")
+            print("not strict(")
             predicted_tools: set[str] = set(
                 map(
                     lambda x: x.get("name", ""),
@@ -72,7 +78,7 @@ class F1ToolEvaluator(BaseEvaluator):
         return MetricState(
             metric_name=MetricType("F1_TOOL"),
             metric_value=f1_score
-        ) if self._tool != "st" else MetricState(
+        ) if self._tool != "strict" else MetricState(
             metric_name=MetricType("F1_TOOL_STRICT"),
             metric_value=f1_score
         )

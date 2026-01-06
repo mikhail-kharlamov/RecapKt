@@ -91,7 +91,7 @@ class MemoryStorage:
                 )
             )
 
-    def find_similar(self, query: str, top_k: int = 5) -> list[str]:
+    def find_similar(self, query: str, top_k: int = 5) -> list[BaseBlock]:
         if self.index is None or len(self.memory_list) == 0:
             return []
 
@@ -106,7 +106,7 @@ class MemoryStorage:
 
         results = []
         for idx in indices[0]:
-            results.append(self.memory_list[idx].content)
+            results.append(self.memory_list[idx])
 
         return results
 

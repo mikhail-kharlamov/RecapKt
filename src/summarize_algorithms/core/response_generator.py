@@ -1,14 +1,23 @@
 from typing import Any
 
 from langchain_core.language_models import BaseChatModel
-from langchain_core.prompts import PromptTemplate
+from langchain_core.messages import (
+    BaseMessage,
+    HumanMessage,
+    SystemMessage,
+    trim_messages,
+)
+from langchain_core.output_parsers import StrOutputParser
+from langchain_core.prompts import ChatPromptTemplate
 from langchain_core.runnables import Runnable
+
+from src.summarize_algorithms.core.models import Session
 
 
 class ResponseGenerator:
     def __init__(self,
                  llm: BaseChatModel,
-                 prompt_template: PromptTemplate,
+                 prompt_template: ChatPromptTemplate,
                  structure: dict[str, Any] | None = None,
                  tools: list[dict[str, Any]] | None = None
                  ) -> None:
@@ -32,7 +41,7 @@ class ResponseGenerator:
             llm_with_tools = self._llm.bind_tools(tools)
             return self._prompt_template | llm_with_tools
 
-        return self._prompt_template | self._llm
+        return self._prompt_template | self._llm | StrOutputParser()
 
     def _get_return_action_plan(self):
          return {
@@ -44,18 +53,51 @@ class ResponseGenerator:
             },
         }
 
+    def _prepare_history(self, sessions: list[Session], query: str) -> list[BaseMessage]:
+        history = []
+        for session in sessions:
+            history.extend(session.to_langchain_messages())
+
+        trimmed_history = trim_messages(
+            history,
+            token_counter=self._llm,
+            max_tokens=100000,
+            strategy="last",
+            include_system=False,
+            allow_partial=False,
+        )
+
+        trimmed_history.append(HumanMessage(content=query))
+
+        return trimmed_history
+
     def generate_response(
-        self, dialogue_memory: str, code_memory: str, tool_memory: str, query: str
-    ) -> str:
+            self,
+            sessions: list[Session],
+            code_memory: list[BaseMessage],
+            tool_memory: list[BaseMessage],
+            text_memory: list[BaseMessage],
+            query: str
+    ) -> Any:
         try:
-            response = self._chain.invoke(
-                {
-                    "dialogue_memory": dialogue_memory,
-                    "code_memory": code_memory,
-                    "tool_memory": tool_memory,
-                    "query": query,
-                }
-            )
+            memory_context = f"""
+            Retrieval Information:
+            - Code Memory: {code_memory}
+            - Tool Memory: {tool_memory}
+            - Text Memory: {text_memory}
+            """
+
+            memory_msg = SystemMessage(content=memory_context)
+
+            history_messages = self._prepare_history(sessions, query)
+
+            full_history = [memory_msg] + history_messages
+
+            response = self._chain.invoke({
+                "history": full_history
+            })
+
             return response
+
         except Exception as e:
             raise ConnectionError(f"API request failed: {str(e)}") from e

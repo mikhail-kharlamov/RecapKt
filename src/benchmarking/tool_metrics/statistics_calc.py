@@ -1,6 +1,7 @@
 import hashlib
 import logging
 import random
+
 from collections import Counter
 from logging import Logger
 from math import fsum
@@ -8,16 +9,21 @@ from pathlib import Path
 from typing import Any
 
 from src.benchmarking.base_logger import BaseLogger
-from src.benchmarking.models.dtos import StatisticsDto, BaseRecord, AlgorithmStatistics, AlgorithmRun
+from src.benchmarking.models.dtos import (
+    AlgorithmRun,
+    AlgorithmStatistics,
+    BaseRecord,
+    StatisticsDto,
+)
 from src.benchmarking.models.enums import MetricType
 from src.benchmarking.tool_metrics.calculator import Calculator
 from src.benchmarking.tool_metrics.evaluators.base_evaluator import BaseEvaluator
 from src.summarize_algorithms.core.dialogue import Dialogue
-from src.summarize_algorithms.core.models import Session, BaseBlock
+from src.summarize_algorithms.core.models import BaseBlock, Session
 
 
 class Statistics:
-    RUN_ID = "exp_11_12_2025_2_45_am"
+    RUN_ID = "exp_29_12_2025_1_31_am"
 
     @staticmethod
     def calculate(
@@ -168,5 +174,5 @@ class Statistics:
 
     @staticmethod
     def __make_seed(count_of_iterations: int, iteration: int) -> int:
-        h = hashlib.sha256(f"{Statistics.RUN_ID}:{count_of_iterations}:{iteration}".encode("utf-8")).hexdigest()
+        h = hashlib.sha256(f"{Statistics.RUN_ID}:{count_of_iterations}:{iteration}".encode()).hexdigest()
         return int(h[:16], 16)

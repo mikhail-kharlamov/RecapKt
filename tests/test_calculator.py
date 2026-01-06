@@ -2,14 +2,14 @@ from unittest.mock import MagicMock
 
 import pytest
 
+from src.benchmarking.models.dtos import MetricState
+from src.benchmarking.models.enums import MetricType
 from src.benchmarking.tool_metrics.calculator import Calculator
 from src.summarize_algorithms.core.models import (
     BaseBlock,
     DialogueState,
     Session,
 )
-from src.benchmarking.models.dtos import MetricState
-from src.benchmarking.models.enums import MetricType
 
 
 @pytest.fixture

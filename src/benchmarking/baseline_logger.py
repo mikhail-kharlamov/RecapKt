@@ -5,8 +5,8 @@ from datetime import datetime
 from pathlib import Path
 
 from src.benchmarking.base_logger import BaseLogger
+from src.benchmarking.models.dtos import BaseRecord, MetricState
 from src.summarize_algorithms.core.models import DialogueState, Session
-from src.benchmarking.models.dtos import MetricState, BaseRecord
 
 
 class BaselineLogger(BaseLogger):
@@ -29,6 +29,7 @@ class BaselineLogger(BaseLogger):
             "query": query,
             "response": getattr(state, "response", None),
             "sessions": [s.to_dict() for s in sessions],
+            "prepared_messages": [s.model_dump(mode="json") for s in state.prepared_messages],
         }
 
         if metrics is not None:
@@ -45,7 +46,7 @@ class BaselineLogger(BaseLogger):
             directory: Path | str = self.log_dir
 
         with open(
-                directory / (system_name +'-' + record["timestamp"] + ".json"),
+                directory / (system_name +"-" + record["timestamp"] + ".json"),
                 "a",
                 encoding="utf-8"
         ) as f:

@@ -1,10 +1,10 @@
 from abc import ABC, abstractmethod
 
 import pandas as pd
+
 from matplotlib import pyplot as plt
 
-from src.benchmarking.models.dtos import StatisticsDto, AlgorithmStatistics
-from src.benchmarking.models.enums import MetricType
+from src.benchmarking.models.dtos import AlgorithmStatistics, StatisticsDto
 
 
 class GraphBuilder(ABC):

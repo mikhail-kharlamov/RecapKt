@@ -1,28 +1,47 @@
 import json
 import logging
+
 from pathlib import Path
 from typing import Any, Optional
 
 import tiktoken
+
 from jinja2 import Environment, FileSystemLoader
 
+from src.benchmarking.agent.dialog_short_tools import DialogueWithShortTools
+from src.benchmarking.agent.dialog_with_weights import DialogueWithWeights
 from src.benchmarking.agent.dialogue_baseline import DialogueBaseline
 from src.benchmarking.baseline_logger import BaselineLogger
 from src.benchmarking.memory_logger import MemoryLogger
+from src.benchmarking.models.dtos import (
+    MODEL_PRICES,
+    AlgorithmStatistics,
+    BaseRecord,
+    DividedSession,
+    MemoryRecord,
+    StatisticsDto,
+    TokenInfo,
+)
 from src.benchmarking.models.enums import MetricType
 from src.benchmarking.tool_metrics.evaluators.f1_tool_evaluator import F1ToolEvaluator
 from src.benchmarking.tool_metrics.graphs.general_trends import GeneralTrends
 from src.benchmarking.tool_metrics.graphs.graph_builder import GraphBuilder
 from src.benchmarking.tool_metrics.load_session import Loader
-from src.benchmarking.models.dtos import DividedSession, StatisticsDto, BaseRecord, MemoryRecord, TokenInfo, \
-    MODEL_PRICES, AlgorithmStatistics
 from src.benchmarking.tool_metrics.statistics_calc import Statistics
-from src.summarize_algorithms.core.models import BaseBlock, Session, OpenAIModels
+from src.summarize_algorithms.core.models import (
+    BaseBlock,
+    OpenAIModels,
+    Session,
+)
 from src.summarize_algorithms.memory_bank.dialogue_system import (
     MemoryBankDialogueSystem,
 )
 from src.summarize_algorithms.recsum.dialogue_system import RecsumDialogueSystem
 from src.utils.configure_logs import configure_logs
+
+BASE_DATA_PATH = Path("/Users/mikhailkharlamov/Documents/Explyt/NewDataSet")
+LOGS_PATH = Path("/Users/mikhailkharlamov/Documents/Explyt/RecapKt/src/benchmarking/tool_metrics/logs/memory/")
+JSON_FILE_TEMPLATE: str = "*.json"
 
 
 class Runner:
@@ -48,41 +67,42 @@ class Runner:
             algorithm = MemoryBankDialogueSystem(embed_code=True, embed_tool=True, system_name="RagMemoryBank")
         elif name == "full_baseline":
             algorithm = DialogueBaseline("FullBaseline")
+        elif name == "short_tools":
+            algorithm = DialogueWithShortTools("ShortTools")
+        elif name == "weights":
+            algorithm = DialogueWithWeights("Weights")
         else:
             algorithm = DialogueBaseline("LastBaseline")
 
         self.logger.info("Start parsing session")
         past_interactions: list[Session] = []
 
-        json_file_template: str = "*.json"
-        path_data_type_1: Path = Path("/Users/mikhailkharlamov/Documents/.../NewDataSet/data_type_1")
-        for file in path_data_type_1.glob(json_file_template):
+        path_data_type_1: Path = Path(BASE_DATA_PATH / "data_type_1")
+        for file in path_data_type_1.glob(JSON_FILE_TEMPLATE):
             past_interactions.append(
                 Loader.load_session_data_type_1(file)
             )
 
-        path_data_type_2: Path = Path("/Users/mikhailkharlamov/Documents/.../NewDataSet/data_type_2")
-        for file in path_data_type_2.glob(json_file_template):
+        path_data_type_2: Path = Path(BASE_DATA_PATH / "data_type_2")
+        for file in path_data_type_2.glob(JSON_FILE_TEMPLATE):
             past_interactions.append(
                 Loader.load_session_data_type_2(file)
             )
 
-        gold_session: Session = Loader.load_session_data_type_1(
-            "/Users/mikhailkharlamov/Documents/.../NewDataSet/gold_session.json"
-        )
+        gold_session: Session = Loader.load_session_data_type_1(BASE_DATA_PATH / "gold_session.json")
 
         divided_session: DividedSession = self.__divide_session(gold_session)
         reference, session = divided_session.reference, divided_session.past_interactions
         prompt = self.__prepare_system_prompt()
 
-        f1_tool_evaluator_strict = F1ToolEvaluator("st")
+        f1_tool_evaluator_strict = F1ToolEvaluator("strict")
         f1_tool_evaluator = F1ToolEvaluator()
 
         #1, 3, 5, 7, 9, 11,
         for count_of_sessions in [1, 3, 5, 7, 9, 11, 13, 15]:
             subdirectory: Path = Path(str(count_of_sessions))
 
-            if name == "full_baseline":
+            if name in ("full_baseline", "short_tools", "weights"):
                 self.logger.info("Start evaluating full baseline statistics")
                 statistics: StatisticsDto = Statistics.calculate(
                     5,
@@ -147,7 +167,7 @@ class Runner:
             "RagRecsum"
         ]:
             folder = Path(path) / f
-            for path in folder.glob("*.json"):
+            for path in folder.glob(JSON_FILE_TEMPLATE):
                 print(path)
                 with path.open("r", encoding="utf-8") as f:
                     obj = json.load(f)
@@ -209,11 +229,10 @@ class Runner:
     @staticmethod
     def tokens():
         Statistics.print_statistics(
-            Runner.get_statistics_by_directory_with_logs("logs/memory/2025-11-15T21:57:10.007355")
+            Runner.get_statistics_by_directory_with_logs(LOGS_PATH)
         )
 
-        path = Path(
-            "/Users/mikhailkharlamov/Documents/.../RecapKt/src/benchmarking/tool_metrics/logs/memory/2025-11-18T17:40:37.936141")
+        path = Path(LOGS_PATH)
         for directory in [
             "BaseMemoryBank",
             "BaseRecsum",
@@ -224,7 +243,7 @@ class Runner:
         ]:
             folder = path / directory
             ps = []
-            for p in folder.glob("*.json"):
+            for p in folder.glob(JSON_FILE_TEMPLATE):
                 ps.append(p)
             ps.sort()
 
@@ -250,11 +269,10 @@ class Runner:
         algs: list[AlgorithmStatistics] = []
         for fold in [1, 3, 5, 7, 9, 11, 13, 15]:
             ps: list[Path] = []
-            path = Path(
-                "/Users/mikhailkharlamov/Documents/.../RecapKt/src/benchmarking/tool_metrics/logs/memory")
+            path = Path(LOGS_PATH)
             for directory in directories:
                 folder = path / directory / f"{fold}"
-                for p in folder.glob("*.json"):
+                for p in folder.glob(JSON_FILE_TEMPLATE):
                     ps.append(p)
                 ps.sort()
 
@@ -309,21 +327,21 @@ class Runner:
 if __name__ == "__main__":
     configure_logs(loglevel=logging.INFO)
 
-    """runner = Runner()
+    runner = Runner()
 
+    # 'c584b0f6-ee9b-4ad0-aa90-a337fb92c9b7'
 
-    print(sys.argv)
-    runner.run(sys.argv[1])"""
+    #print(sys.argv)
+    #runner.run(sys.argv[1])
+    #weights short_tools
+    #runner.run(sys.argv[1])
 
     Runner.build_graph(
         [GeneralTrends],
         [
-            "BaseMemoryBank",
-            "BaseRecsum",
             "FullBaseline",
-            "LastBaseline",
-            "RagMemoryBank",
-            "RagRecsum",
+            "ShortTools",
+            "Weights"
         ],
     )
     """for directory in [
@@ -338,5 +356,6 @@ if __name__ == "__main__":
             [TrendsWithQuantiles],
             [directory],
         )"""
+
 
 

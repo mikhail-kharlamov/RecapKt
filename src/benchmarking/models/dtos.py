@@ -54,6 +54,7 @@ class BaseRecord:
     query: str
     response: Any
     sessions: list[dict[str, Any]]
+    prepared_messages: list[dict[str, Any]]
     metric: list[MetricState] | None = field(default=None)
 
 

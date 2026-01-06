@@ -12,10 +12,11 @@ class RecsumDialogueSystem(BaseDialogueSystem):
         return RecursiveSummarizer(self.llm, MEMORY_UPDATE_PROMPT_TEMPLATE)
 
     def _get_initial_state(
-        self, sessions: list[Session], query: str
+        self, sessions: list[Session], last_session: Session, query: str
     ) -> RecsumDialogueState:
         return RecsumDialogueState(
             dialogue_sessions=sessions,
+            last_session=last_session,
             code_memory_storage=MemoryStorage(
                 embeddings=self.embed_model, max_session_id=self.max_session_id
             ),

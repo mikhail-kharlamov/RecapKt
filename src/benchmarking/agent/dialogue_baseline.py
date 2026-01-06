@@ -1,21 +1,38 @@
+import logging
 import os
 
 from typing import Any, Optional
 
 from dotenv import load_dotenv
 from langchain_community.callbacks import get_openai_callback
+from langchain_core.exceptions import OutputParserException
 from langchain_core.language_models import BaseChatModel
-from langchain_core.messages import BaseMessage, trim_messages, SystemMessage
+from langchain_core.messages import (
+    BaseMessage,
+    SystemMessage,
+    ToolMessage,
+    trim_messages,
+)
 from langchain_core.output_parsers import StrOutputParser
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
 from langchain_core.runnables import Runnable
 from langchain_openai import ChatOpenAI
 from pydantic import SecretStr
+from tenacity import (
+    retry,
+    retry_if_exception_type,
+    stop_after_attempt,
+    wait_exponential,
+)
 
 from src.benchmarking.baseline_logger import BaselineLogger
 from src.benchmarking.prompts import BASELINE_PROMPT
 from src.summarize_algorithms.core.dialogue import Dialogue
-from src.summarize_algorithms.core.models import DialogueState, OpenAIModels, Session, BaseBlock
+from src.summarize_algorithms.core.models import (
+    DialogueState,
+    OpenAIModels,
+    Session,
+)
 
 
 class DialogueBaseline(Dialogue):
@@ -93,9 +110,12 @@ class DialogueBaseline(Dialogue):
             token_counter=self.llm,
             max_tokens=max_tokens,
             strategy="last",
-            include_system=False,
+            include_system=True,
             allow_partial=False,
         )
+
+        while trimmed_messages and isinstance(trimmed_messages[0], ToolMessage):
+            trimmed_messages.pop(0)
 
         if system_msg:
             return [system_msg] + trimmed_messages
@@ -115,8 +135,9 @@ class DialogueBaseline(Dialogue):
         compressed_sessions: list[BaseMessage] = type(self)._compress(sessions)
         context: list[BaseMessage] = self._crop(compressed_sessions)
 
+        safe_system_prompt = system_prompt.replace("{", "{{").replace("}", "}}")
         chat_prompt = ChatPromptTemplate.from_messages([
-            ("system", system_prompt),
+            ("system", safe_system_prompt),
             MessagesPlaceholder("history")
         ])
 
@@ -125,8 +146,20 @@ class DialogueBaseline(Dialogue):
         else:
             chain = chat_prompt | self.llm | StrOutputParser()
 
+
+        @retry(
+            stop=stop_after_attempt(3),
+            wait=wait_exponential(multiplier=1, min=2, max=10),
+            retry=retry_if_exception_type(OutputParserException),
+            reraise=True
+        )
+        def invoke_with_retry(input_data):
+            logging.info("Attempting to invoke chain...")
+            return chain.invoke(input_data)
+
+
         with get_openai_callback() as cb:
-            result = chain.invoke({"history": context})
+            result = invoke_with_retry({"history": context})
 
             self.prompt_tokens += cb.prompt_tokens
             self.completion_tokens += cb.completion_tokens
@@ -134,6 +167,7 @@ class DialogueBaseline(Dialogue):
 
         return DialogueState(
             dialogue_sessions=sessions,
+            prepared_messages=context,
             query=system_prompt,
             _response=result,
             code_memory_storage=None,

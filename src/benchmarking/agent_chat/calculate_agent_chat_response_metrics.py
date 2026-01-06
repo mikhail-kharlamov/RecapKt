@@ -5,8 +5,8 @@ import random
 from dataclasses import dataclass, field
 from pathlib import Path
 
-from src.benchmarking.agent_chat.deserialize_agent_chat import ChatDataset
 from src.benchmarking.agent.dialogue_baseline import DialogueBaseline
+from src.benchmarking.agent_chat.deserialize_agent_chat import ChatDataset
 from src.benchmarking.llm_evaluation import (
     ComparisonResult,
     LLMChatAgentEvaluation,

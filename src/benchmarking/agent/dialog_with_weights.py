@@ -1,7 +1,7 @@
 from decimal import Decimal
 from math import ceil
 
-from langchain_core.messages import BaseMessage
+from langchain_core.messages import BaseMessage, HumanMessage
 from typing_extensions import override
 
 from src.benchmarking.agent.dialogue_baseline import DialogueBaseline
@@ -19,16 +19,18 @@ class DialogueWithWeights(DialogueBaseline):
         step: Decimal = Decimal(1) / Decimal(mid)
         coefficient: Decimal = Decimal(1)
 
-        for i in range(len(messages) - 1):
-            if coefficient > 0:
+        for i in range(len(messages)):
+            if coefficient > 0 and i != 0:
                 coefficient -= step
             else:
                 coefficient += step
 
             message = messages[i]
-            if message.role in ("USER", "user"):
+            if isinstance(message, HumanMessage):
+                cropped_messages.append(message)
                 continue
-            message.content = message.content[ceil(len(message.contenta) * (1 - coefficient)):]
+
+            message.content = message.content[:ceil(len(message.content) * coefficient)]
             cropped_messages.append(message)
 
         return cropped_messages

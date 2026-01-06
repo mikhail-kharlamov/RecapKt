@@ -1,10 +1,18 @@
 import json
+import logging
+
 from dataclasses import dataclass, field
 from enum import Enum
 from typing import Any, Iterator, Optional
 
 from dataclasses_json import dataclass_json
-from langchain_core.messages import AIMessage, ToolMessage, HumanMessage, SystemMessage, BaseMessage
+from langchain_core.messages import (
+    AIMessage,
+    BaseMessage,
+    HumanMessage,
+    SystemMessage,
+    ToolMessage,
+)
 
 
 class OpenAIModels(Enum):
@@ -97,12 +105,21 @@ class Session:
                 langchain_messages.append(AIMessage(content=msg.code))
 
             elif isinstance(msg, ToolCallBlock):
-
-                ai_tool_call = {
-                    "name": msg.name,
-                    "args": json.loads(msg.arguments) if isinstance(msg.arguments, str) else msg.arguments,
-                    "id": msg.id
-                }
+                try:
+                    ai_tool_call = {
+                        "name": msg.name,
+                        "args": json.loads(msg.arguments)
+                                if isinstance(msg.arguments, str) and msg.arguments != ""
+                                else {},
+                        "id": msg.id
+                    }
+                except json.decoder.JSONDecodeError as e:
+                    logging.error(e)
+                    ai_tool_call = {
+                        "name": msg.name,
+                        "args": {},
+                        "id": msg.id
+                    }
 
                 langchain_messages.append(AIMessage(
                     content="",
@@ -110,7 +127,8 @@ class Session:
                 ))
 
                 langchain_messages.append(ToolMessage(
-                    content=msg.response,
+                    response=msg.response,
+                    content=msg.content,
                     tool_call_id=msg.id,
                     name=msg.name
                 ))
@@ -148,6 +166,7 @@ class DialogueState:
     from src.summarize_algorithms.core.memory_storage import MemoryStorage
 
     dialogue_sessions: list[Session]
+    prepared_messages: list[BaseMessage]
     code_memory_storage: Optional[MemoryStorage]
     tool_memory_storage: Optional[MemoryStorage]
     query: str
@@ -169,6 +188,7 @@ class DialogueState:
 @dataclass
 class RecsumDialogueState(DialogueState):
     text_memory: list[list[str]] = field(default_factory=list)
+    last_session: Session = field(default_factory=lambda: Session([]))
 
     @property
     def latest_memory(self) -> str:
@@ -181,6 +201,7 @@ class MemoryBankDialogueState(DialogueState):
     from src.summarize_algorithms.core.memory_storage import MemoryStorage
 
     text_memory_storage: MemoryStorage = field(default_factory=MemoryStorage)
+    last_session: Session = field(default_factory=lambda: Session([]))
 
 
 class WorkflowNode(Enum):

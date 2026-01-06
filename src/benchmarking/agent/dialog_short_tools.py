@@ -1,4 +1,3 @@
-import json
 
 from langchain_core.messages import BaseMessage, ToolMessage
 from typing_extensions import override
@@ -15,9 +14,6 @@ class DialogueWithShortTools(DialogueBaseline):
 
         for message in messages:
             if isinstance(message, ToolMessage):
-                content_json = json.loads(message.content)
-                if isinstance(content_json, dict):
-                    shortened_content = {"result": content_json.get("result")}
-                    message.content = json.dumps(shortened_content, ensure_ascii=False)
+                message.content = ""
 
         return messages

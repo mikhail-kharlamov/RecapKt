@@ -2,6 +2,7 @@ import json
 import logging
 import os
 import traceback
+
 from logging.handlers import RotatingFileHandler
 from typing import Optional
 
@@ -18,7 +19,7 @@ class DadaJsonFormatter(logging.Formatter):
         }
 
         if record.exc_info:
-            log_record["exception"] = ''.join(traceback.format_exception(*record.exc_info))
+            log_record["exception"] = "".join(traceback.format_exception(*record.exc_info))
 
         return json.dumps(log_record)
 
@@ -42,11 +43,11 @@ def configure_logs(logdir: Optional[str] = None, loglevel: int = logging.INFO, l
         datefmt="%Y-%m-%d %H:%M:%S",
         reset=True,
         log_colors={
-            'DEBUG': 'cyan',
-            'INFO': 'green',
-            'WARNING': 'yellow',
-            'ERROR': 'red',
-            'CRITICAL': 'red,bg_white',
+            "DEBUG": "cyan",
+            "INFO": "green",
+            "WARNING": "yellow",
+            "ERROR": "red",
+            "CRITICAL": "red,bg_white",
         }
     )
     console_handler.setFormatter(console_formatter)

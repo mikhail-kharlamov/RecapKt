@@ -8,7 +8,11 @@ from dotenv import load_dotenv
 from langchain_community.callbacks import get_openai_callback
 from langchain_core.embeddings import Embeddings
 from langchain_core.language_models import BaseChatModel
-from langchain_core.prompts import PromptTemplate
+from langchain_core.prompts import (
+    ChatPromptTemplate,
+    MessagesPlaceholder,
+    PromptTemplate,
+)
 from langchain_openai import ChatOpenAI
 from langgraph.constants import END
 from langgraph.graph import StateGraph
@@ -82,7 +86,7 @@ class BaseDialogueSystem(ABC, Dialogue):
         return RESPONSE_GENERATION_PROMPT
 
     @abstractmethod
-    def _get_initial_state(self, sessions: list[Session], query: str) -> DialogueState:
+    def _get_initial_state(self, sessions: list[Session], last_session: Session, query: str) -> DialogueState:
         pass
 
     @property
@@ -93,10 +97,21 @@ class BaseDialogueSystem(ABC, Dialogue):
     def _build_graph(
             self,
             structure: dict[str, Any] | None = None,
-            tools: list[dict[str, Any]] | None = None
+            tools: list[dict[str, Any]] | None = None,
+            system_prompt_template: str = ""
     ) -> CompiledStateGraph:
+
+        safe_system_prompt = system_prompt_template.replace("{", "{{").replace("}", "}}")
+        chat_prompt = ChatPromptTemplate.from_messages([
+            ("system", safe_system_prompt),
+            MessagesPlaceholder("history")
+        ])
+
         self.response_generator = ResponseGenerator(
-            self.llm, self._get_response_prompt_template(), structure, tools
+            self.llm,
+            chat_prompt,
+            structure,
+            tools
         )
 
         workflow = StateGraph(self._get_dialogue_state_class)
@@ -132,16 +147,12 @@ class BaseDialogueSystem(ABC, Dialogue):
             structure: dict[str, Any] | None = None,
             tools: list[dict[str, Any]] | None = None
     ) -> DialogueState:
-        if structure is not None or tools is not None:
-            graph = self._build_graph(structure, tools)
-        else:
-            graph = self.graph
+        graph = self._build_graph(structure, tools, system_prompt_template=system_prompt)
+        initial_state = self._get_initial_state(sessions[:-1], sessions[-1], system_prompt)
 
-        initial_state = self._get_initial_state(sessions, system_prompt)
         with get_openai_callback() as cb:
-            self.state = self._get_dialogue_state_class(
-                **graph.invoke(initial_state)
-            )
+            result_state = graph.invoke(initial_state)
+            self.state = self._get_dialogue_state_class(**result_state)
 
             self.prompt_tokens += cb.prompt_tokens
             self.completion_tokens += cb.completion_tokens

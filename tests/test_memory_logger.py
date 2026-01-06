@@ -3,13 +3,13 @@ import json
 import pytest
 
 from src.benchmarking.memory_logger import MemoryLogger
+from src.benchmarking.models.dtos import MetricState
+from src.benchmarking.models.enums import MetricType
 from src.summarize_algorithms.core.models import (
     BaseBlock,
     DialogueState,
     Session,
 )
-from src.benchmarking.models.dtos import MetricState
-from src.benchmarking.models.enums import MetricType
 
 
 class FakeStorage:

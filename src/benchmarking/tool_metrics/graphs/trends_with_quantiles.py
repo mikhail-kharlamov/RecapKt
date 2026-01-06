@@ -1,10 +1,9 @@
-import math
 import pandas as pd
-from matplotlib import pyplot as plt
 import seaborn as sns
 
+from matplotlib import pyplot as plt
+
 from src.benchmarking.models.dtos import StatisticsDto
-from src.benchmarking.models.enums import MetricType
 from src.benchmarking.tool_metrics.graphs.graph_builder import GraphBuilder
 
 
