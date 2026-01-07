@@ -1,12 +1,12 @@
 import json
 import logging
+import os
 import sys
-
 from pathlib import Path
 
 import tiktoken
-
 from jinja2 import Environment, FileSystemLoader
+from load_dotenv import load_dotenv
 
 from src.benchmarking.agent.dialog_short_tools import DialogueWithShortTools
 from src.benchmarking.agent.dialog_with_weights import DialogueWithWeights
@@ -22,7 +22,7 @@ from src.benchmarking.models.dtos import (
     StatisticsDto,
     TokenInfo,
 )
-from src.benchmarking.models.enums import AlgorithmName, MetricType
+from src.benchmarking.models.enums import AlgorithmName, MetricType, AlgorithmDirectory
 from src.benchmarking.tool_metrics.evaluators.f1_tool_evaluator import F1ToolEvaluator
 from src.benchmarking.tool_metrics.graphs.general_trends import GeneralTrends
 from src.benchmarking.tool_metrics.graphs.graph_builder import GraphBuilder
@@ -40,27 +40,29 @@ from src.summarize_algorithms.memory_bank.dialogue_system import (
 from src.summarize_algorithms.recsum.dialogue_system import RecsumDialogueSystem
 from src.utils.configure_logs import configure_logs
 
-BASE_DATA_PATH = Path("/Users/mikhailkharlamov/Documents/Explyt/NewDataSet")
-LOGS_PATH = Path("/Users/mikhailkharlamov/Documents/Explyt/RecapKt/src/benchmarking/tool_metrics/logs/memory/")
+load_dotenv()
+
+BASE_DATA_PATH = Path(os.getenv("BASE_DATA_PATH"))
+LOGS_PATH = Path(os.getenv("LOGS_PATH"))
 JSON_FILE_TEMPLATE: str = "*.json"
 
 
 class Runner:
     def __init__(self, templates_dir: str = "prompts") -> None:
-        self.logger = logging.getLogger()
-        self.env = Environment(
+        self._logger = logging.getLogger()
+        self._env = Environment(
             loader=FileSystemLoader(templates_dir),
             autoescape=True,
             trim_blocks=True
         )
 
-    def run(self, name: str) -> None:
-        memory_logger = MemoryLogger()
-        baseline_logger = BaselineLogger()
+        self._baseline_logger = BaselineLogger()
+        self._memory_logger = MemoryLogger()
 
+    def run(self, name: str) -> None:
         algorithm: Dialogue = Runner.__init_algorithm(AlgorithmName(name))
 
-        self.logger.info("Start parsing session")
+        self._logger.info("Start parsing session")
         past_interactions: list[Session] = []
 
         path_data_type_1: Path = Path(BASE_DATA_PATH / "data_type_1")
@@ -88,7 +90,7 @@ class Runner:
             subdirectory: Path = Path(str(count_of_sessions))
 
             if name in ("full_baseline", "short_tools", "weights"):
-                self.logger.info("Start evaluating full baseline statistics")
+                self._logger.info("Start evaluating full baseline statistics")
                 statistics: StatisticsDto = Statistics.calculate(
                     5,
                     [algorithm],
@@ -98,13 +100,13 @@ class Runner:
                     Session(session),
                     prompt,
                     reference,
-                    baseline_logger,
+                    self._baseline_logger,
                     subdirectory,
                     None,
                     True
                 )
             elif name == "last_baseline":
-                self.logger.info("Start evaluating last baseline statistics")
+                self._logger.info("Start evaluating last baseline statistics")
                 statistics = Statistics.calculate(
                     5,
                     [algorithm],
@@ -114,13 +116,13 @@ class Runner:
                     Session(session),
                     prompt,
                     reference,
-                    baseline_logger,
+                    self._baseline_logger,
                     subdirectory,
                     None,
                     True
                 )
             else:
-                self.logger.info("Start evaluating memory statistics")
+                self._logger.info("Start evaluating memory statistics")
                 statistics = Statistics.calculate(
                     5,
                     [algorithm],
@@ -130,7 +132,7 @@ class Runner:
                     Session(session),
                     prompt,
                     reference,
-                    memory_logger,
+                    self._memory_logger,
                     subdirectory,
                     None,
                     True
@@ -212,8 +214,8 @@ class Runner:
             if is_query_found:
                 past_interactions.append(session.messages[i])
             elif session.messages[i].role == "USER" and session.messages[i].content != "":
-                self.logger.info(f"User founded {i}")
-                self.logger.info(f"User message: {session.messages[i].content}")
+                self._logger.info(f"User founded {i}")
+                self._logger.info(f"User message: {session.messages[i].content}")
                 query = session.messages[i]
                 is_query_found = True
             else:
@@ -307,7 +309,7 @@ class Runner:
             graph.build(StatisticsDto(algorithms=f1_strict), "", " strict")
 
     def __prepare_system_prompt(self) -> str:
-        template = self.env.get_template("first_stage.j2")
+        template = self._env.get_template("first_stage.j2")
         rendered_prompt = template.render()
         return rendered_prompt
 
@@ -327,8 +329,13 @@ if __name__ == "__main__":
     Runner.build_graph(
         [GeneralTrends],
         [
-            "FullBaseline",
-            "ShortTools",
-            "Weights"
-        ],
+            AlgorithmDirectory.FULL_BASELINE.value,
+            AlgorithmDirectory.LAST_BASELINE.value,
+            AlgorithmDirectory.RAG_MEMORY_BANK.value,
+            AlgorithmDirectory.RAG_RECSUM.value,
+            AlgorithmDirectory.RAG_MEMORY_BANK.value,
+            AlgorithmDirectory.BASE_MEMORY_BANK.value,
+            AlgorithmDirectory.WEIGHTS.value,
+            AlgorithmDirectory.SHORT_TOOLS.value,
+        ]
     )

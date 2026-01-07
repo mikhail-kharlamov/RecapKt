@@ -16,3 +16,14 @@ class AlgorithmName(Enum):
     LAST_BASELINE = "last_baseline"
     SHORT_TOOLS = "short_tools"
     WEIGHTS = "weights"
+
+
+class AlgorithmDirectory(Enum):
+    BASE_RECSUM = "BaseRecsum"
+    BASE_MEMORY_BANK = "BaseMemoryBank"
+    RAG_RECSUM = "RagRecsum"
+    RAG_MEMORY_BANK = "RagMemoryBank"
+    FULL_BASELINE = "FullBaseline"
+    LAST_BASELINE = "LastBaseline"
+    SHORT_TOOLS = "ShortTools"
+    WEIGHTS = "Weights"

@@ -2,6 +2,7 @@
 .mypy_cache/
 .pytest_cache/
 __pycache__/
+*.DS_Store
 .ipynb_checkpoints/
 .hypothesis/
 *.egg-info/
