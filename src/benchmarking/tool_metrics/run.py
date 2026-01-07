@@ -2,9 +2,11 @@ import json
 import logging
 import os
 import sys
+
 from pathlib import Path
 
 import tiktoken
+
 from jinja2 import Environment, FileSystemLoader
 from load_dotenv import load_dotenv
 
@@ -22,7 +24,7 @@ from src.benchmarking.models.dtos import (
     StatisticsDto,
     TokenInfo,
 )
-from src.benchmarking.models.enums import AlgorithmName, MetricType, AlgorithmDirectory
+from src.benchmarking.models.enums import AlgorithmDirectory, AlgorithmName, MetricType
 from src.benchmarking.tool_metrics.evaluators.f1_tool_evaluator import F1ToolEvaluator
 from src.benchmarking.tool_metrics.graphs.general_trends import GeneralTrends
 from src.benchmarking.tool_metrics.graphs.graph_builder import GraphBuilder
@@ -42,8 +44,8 @@ from src.utils.configure_logs import configure_logs
 
 load_dotenv()
 
-BASE_DATA_PATH = Path(os.getenv("BASE_DATA_PATH"))
-LOGS_PATH = Path(os.getenv("LOGS_PATH"))
+BASE_DATA_PATH = os.getenv("BASE_DATA_PATH", "")
+LOGS_PATH = os.getenv("LOGS_PATH", "")
 JSON_FILE_TEMPLATE: str = "*.json"
 
 
@@ -65,19 +67,19 @@ class Runner:
         self._logger.info("Start parsing session")
         past_interactions: list[Session] = []
 
-        path_data_type_1: Path = Path(BASE_DATA_PATH / "data_type_1")
+        path_data_type_1: Path = Path(BASE_DATA_PATH) / "data_type_1"
         for file in path_data_type_1.glob(JSON_FILE_TEMPLATE):
             past_interactions.append(
                 Loader.load_session_data_type_1(file)
             )
 
-        path_data_type_2: Path = Path(BASE_DATA_PATH / "data_type_2")
+        path_data_type_2: Path = Path(BASE_DATA_PATH)  / "data_type_2"
         for file in path_data_type_2.glob(JSON_FILE_TEMPLATE):
             past_interactions.append(
                 Loader.load_session_data_type_2(file)
             )
 
-        gold_session: Session = Loader.load_session_data_type_1(BASE_DATA_PATH / "gold_session.json")
+        gold_session: Session = Loader.load_session_data_type_1(Path(BASE_DATA_PATH) / "gold_session.json")
 
         divided_session: DividedSession = self.__divide_session(gold_session)
         reference, session = divided_session.reference, divided_session.past_interactions
