@@ -2,15 +2,14 @@ import json
 import logging
 import os
 import traceback
-
+from logging import LogRecord
 from logging.handlers import RotatingFileHandler
-from typing import Optional
 
 from colorlog import ColoredFormatter
 
 
 class DadaJsonFormatter(logging.Formatter):
-    def format(self, record):
+    def format(self, record: LogRecord) -> str:
         log_record = {
             "level": record.levelname,
             "logger": record.name,
@@ -24,8 +23,7 @@ class DadaJsonFormatter(logging.Formatter):
         return json.dumps(log_record)
 
 
-def configure_logs(logdir: Optional[str] = None, loglevel: int = logging.INFO, log_file: Optional[str] = None):
-
+def configure_logs(logdir: str | None = None, loglevel: int = logging.INFO, log_file: str | None = None) -> None:
     logger = logging.getLogger()
     logger.setLevel(loglevel)
 

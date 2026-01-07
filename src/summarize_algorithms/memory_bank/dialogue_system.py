@@ -1,5 +1,3 @@
-from typing import Type
-
 from src.summarize_algorithms.core.base_dialogue_system import BaseDialogueSystem
 from src.summarize_algorithms.core.memory_storage import MemoryStorage
 from src.summarize_algorithms.core.models import MemoryBankDialogueState, Session
@@ -35,8 +33,9 @@ class MemoryBankDialogueSystem(BaseDialogueSystem):
             text_memory_storage=MemoryStorage(
                 embeddings=self.embed_model, max_session_id=self.max_session_id
             ),
+            prepared_messages=[]
         )
 
     @property
-    def _get_dialogue_state_class(self) -> Type:
+    def _get_dialogue_state_class(self) -> type:
         return MemoryBankDialogueState

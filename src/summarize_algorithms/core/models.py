@@ -1,9 +1,10 @@
 import json
 import logging
 
+from collections.abc import Iterator
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import Any, Iterator, Optional
+from typing import Any
 
 from dataclasses_json import dataclass_json
 from langchain_core.messages import (
@@ -55,6 +56,9 @@ class Session:
         return len(self.messages)
 
     def __str__(self) -> str:
+        if len(self.messages) == 0:
+            return "missing"
+
         result_messages = []
         for msg in self.messages:
             if isinstance(msg, CodeBlock):
@@ -167,11 +171,11 @@ class DialogueState:
 
     dialogue_sessions: list[Session]
     prepared_messages: list[BaseMessage]
-    code_memory_storage: Optional[MemoryStorage]
-    tool_memory_storage: Optional[MemoryStorage]
+    code_memory_storage: MemoryStorage | None
+    tool_memory_storage: MemoryStorage | None
     query: str
     current_session_index: int = 0
-    _response: Optional[str | dict[str, Any]] = None
+    _response: str | dict[str, Any] | None = None
 
     @property
     def response(self) -> str | dict[str, Any]:
@@ -186,9 +190,14 @@ class DialogueState:
 
 @dataclass_json
 @dataclass
-class RecsumDialogueState(DialogueState):
-    text_memory: list[list[str]] = field(default_factory=list)
+class MemoryDialogueState(DialogueState):
     last_session: Session = field(default_factory=lambda: Session([]))
+
+
+@dataclass_json
+@dataclass
+class RecsumDialogueState(MemoryDialogueState):
+    text_memory: list[list[str]] = field(default_factory=list)
 
     @property
     def latest_memory(self) -> str:
@@ -197,11 +206,10 @@ class RecsumDialogueState(DialogueState):
 
 @dataclass_json
 @dataclass
-class MemoryBankDialogueState(DialogueState):
+class MemoryBankDialogueState(MemoryDialogueState):
     from src.summarize_algorithms.core.memory_storage import MemoryStorage
 
     text_memory_storage: MemoryStorage = field(default_factory=MemoryStorage)
-    last_session: Session = field(default_factory=lambda: Session([]))
 
 
 class WorkflowNode(Enum):
@@ -213,4 +221,8 @@ class UpdateState(Enum):
     CONTINUE_UPDATE = "continue_update"
     FINISH_UPDATE = "finish_update"
 
-
+@dataclass_json
+@dataclass
+class ResponseContext:
+    response: Any
+    prepared_history: list[BaseMessage]

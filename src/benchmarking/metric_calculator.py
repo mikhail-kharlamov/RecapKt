@@ -4,7 +4,7 @@ import json
 from dataclasses import asdict, dataclass, field
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Dict, List
+from typing import Any
 
 import numpy as np
 
@@ -17,16 +17,16 @@ from src.summarize_algorithms.recsum.dialogue_system import RecsumDialogueSystem
 
 @dataclass
 class RawSemanticData:
-    precision: List[float] = field(default_factory=list)
-    recall: List[float] = field(default_factory=list)
-    f1: List[float] = field(default_factory=list)
+    precision: list[float] = field(default_factory=list)
+    recall: list[float] = field(default_factory=list)
+    f1: list[float] = field(default_factory=list)
 
 
 @dataclass
 class RawLLMData:
-    faithfulness: List[float] = field(default_factory=list)
-    informativeness: List[float] = field(default_factory=list)
-    coherency: List[float] = field(default_factory=list)
+    faithfulness: list[float] = field(default_factory=list)
+    informativeness: list[float] = field(default_factory=list)
+    coherency: list[float] = field(default_factory=list)
 
 
 @dataclass
@@ -38,7 +38,7 @@ class MetricStats:
     count: int = 0
 
     @classmethod
-    def from_values(cls, values: List[float]) -> "MetricStats":
+    def from_values(cls, values: list[float]) -> "MetricStats":
         if not values:
             return cls()
 
@@ -65,13 +65,13 @@ class SystemResults:
 
 @dataclass
 class PairwiseResults:
-    faithfulness: Dict[str, int] = field(
+    faithfulness: dict[str, int] = field(
         default_factory=lambda: {"recsum": 0, "baseline": 0, "draw": 0}
     )
-    informativeness: Dict[str, int] = field(
+    informativeness: dict[str, int] = field(
         default_factory=lambda: {"recsum": 0, "baseline": 0, "draw": 0}
     )
-    coherency: Dict[str, int] = field(
+    coherency: dict[str, int] = field(
         default_factory=lambda: {"recsum": 0, "baseline": 0, "draw": 0}
     )
 
@@ -81,11 +81,11 @@ class PairwiseResults:
 
 @dataclass
 class MCPResult:
-    metadata: Dict[str, Any] = field(default_factory=dict)
+    metadata: dict[str, Any] = field(default_factory=dict)
     recsum_results: SystemResults = field(default_factory=SystemResults)
     pairwise_results: PairwiseResults = field(default_factory=PairwiseResults)
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return asdict(self)
 
 

@@ -72,7 +72,6 @@ Evaluate each criterion independently and provide your assessment for all three 
 """
 )
 
-
 SINGLE_EVALUATION_MEMORY_PROMPT = PromptTemplate.from_template(
     """
 You are a meticulous and impartial evaluator. Your task is to assess the quality of the `Generated Memory`
@@ -200,7 +199,6 @@ For each criterion, output:
 - A one-sentence justification highlighting the strongest reason for the score (even if very high — always find at least
  one potential improvement).
 """)
-
 
 PAIRWISE_EVALUATION_AGENT_RESPONSE = PromptTemplate.from_template("""
 You are a highly critical expert evaluator comparing two AI assistant answers to the same user request in a dialogue

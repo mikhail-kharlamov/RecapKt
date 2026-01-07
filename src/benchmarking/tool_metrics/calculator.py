@@ -1,7 +1,7 @@
 import logging
 
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any
 
 from src.benchmarking.base_logger import BaseLogger
 from src.benchmarking.models.dtos import BaseRecord, MetricState
@@ -23,9 +23,9 @@ class Calculator:
             prompt: str,
             reference: list[BaseBlock],
             logger: BaseLogger,
-            tools: Optional[list[dict[str, Any]]] = None,
-            subdirectory: Optional[str | Path] = None,
-            iteration: Optional[int] = None
+            subdirectory: Path,
+            tools: list[dict[str, Any]] | None = None,
+            iteration: int | None = None
     ) -> list[BaseRecord]:
         """
         The main method for run and evaluate algorithm with the ast sessions.
@@ -57,8 +57,8 @@ class Calculator:
                 iteration or 1,
                 sessions,
                 state,
+                algorithm.system_name / subdirectory,
                 algorithm_metrics,
-                algorithm.system_name / subdirectory
             )
 
             metrics.append(record)

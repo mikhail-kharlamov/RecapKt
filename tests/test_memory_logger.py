@@ -1,9 +1,10 @@
 import json
+from pathlib import Path
 
 import pytest
 
 from src.benchmarking.memory_logger import MemoryLogger
-from src.benchmarking.models.dtos import MetricState
+from src.benchmarking.models.dtos import MetricState, MemoryRecord
 from src.benchmarking.models.enums import MetricType
 from src.summarize_algorithms.core.models import (
     BaseBlock,
@@ -27,6 +28,7 @@ def fake_state():
         code_memory_storage=FakeStorage("code"),
         tool_memory_storage=FakeStorage("tool"),
         query="Test query",
+        prepared_messages=[]
     )
     s._response = "Test response"
     s.text_memory = [["memory line 1", "memory line 2"]]
@@ -40,7 +42,10 @@ def sessions():
 
 def test_log_iteration_creates_file(tmp_path, fake_state, sessions):
     logger = MemoryLogger(logs_dir=tmp_path)
-    metric = MetricState(metric=MetricType.COHERENCE, value=0.87)
+
+    metric_list = [MetricState(metric_name=MetricType("COHERENCE"), metric_value=0.87)]
+
+    subdir = Path("test_runs")
 
     record = logger.log_iteration(
         system_name="FakeSystem",
@@ -48,30 +53,46 @@ def test_log_iteration_creates_file(tmp_path, fake_state, sessions):
         iteration=1,
         sessions=sessions,
         state=fake_state,
-        metric=metric
+        metrics=metric_list,
+        subdirectory=subdir
     )
 
-    assert isinstance(record, dict)
-    assert record["system"] == "FakeSystem"
-    assert record["iteration"] == 1
-    assert record["query"] == "Hello?"
-    assert record["response"] == "Test response"
-    assert "metric_name" in record and abs(record["metric_value"] - 0.87) < 0.0001
+    assert isinstance(record, MemoryRecord)
+    assert record.system == "FakeSystem"
+    assert record.iteration == 1
+    assert record.query == "Hello?"
+    assert record.response == "Test response"
 
-    expected_file = tmp_path / "FakeSystem1.jsonl"
-    assert expected_file.exists()
+    assert record.metric is not None
+    assert len(record.metric) == 1
 
-    content = expected_file.read_text(encoding="utf-8").strip()
+    first_metric = record.metric[0]
+    if isinstance(first_metric, dict):
+        assert abs(first_metric["metric_value"] - 0.87) < 0.0001
+    else:
+        assert abs(first_metric.metric_value - 0.87) < 0.0001
+
+    expected_dir = tmp_path / subdir
+    assert expected_dir.exists()
+
+    files = list(expected_dir.glob("FakeSystem-*.json"))
+    assert len(files) == 1
+    log_file = files[0]
+
+    content = log_file.read_text(encoding="utf-8").strip()
     parsed = json.loads(content)
+
     assert parsed["system"] == "FakeSystem"
     assert parsed["query"] == "Hello?"
     assert "sessions" in parsed
     assert isinstance(parsed["sessions"], list)
     assert parsed["sessions"][0]["messages"][0]["content"] == "Hello there!"
+    assert parsed["metric"][0]["metric_name"] == "COHERENCE"
 
 
 def test_log_iteration_without_metric(tmp_path, fake_state, sessions):
     logger = MemoryLogger(logs_dir=tmp_path)
+    subdir = Path("no_metric_runs")
 
     record = logger.log_iteration(
         system_name="SystemNoMetric",
@@ -79,11 +100,15 @@ def test_log_iteration_without_metric(tmp_path, fake_state, sessions):
         iteration=2,
         sessions=sessions,
         state=fake_state,
-        metric=None
+        metrics=None,
+        subdirectory=subdir
     )
 
-    assert "metric_name" not in record
-    assert "metric_value" not in record
+    assert record.metric is None or record.metric == []
 
-    expected_file = tmp_path / "SystemNoMetric2.jsonl"
-    assert expected_file.exists()
+    expected_dir = tmp_path / subdir
+    files = list(expected_dir.glob("SystemNoMetric-*.json"))
+    assert len(files) == 1
+
+    parsed = json.loads(files[0].read_text(encoding="utf-8"))
+    assert "metric" not in parsed or parsed["metric"] is None

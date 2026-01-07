@@ -1,8 +1,10 @@
+from pathlib import Path
 from unittest.mock import MagicMock
+from datetime import datetime
 
 import pytest
 
-from src.benchmarking.models.dtos import MetricState
+from src.benchmarking.models.dtos import MetricState, BaseRecord
 from src.benchmarking.models.enums import MetricType
 from src.benchmarking.tool_metrics.calculator import Calculator
 from src.summarize_algorithms.core.models import (
@@ -10,31 +12,48 @@ from src.summarize_algorithms.core.models import (
     DialogueState,
     Session,
 )
+from src.summarize_algorithms.core.dialogue import Dialogue
 
 
 @pytest.fixture
 def fake_logger():
     logger = MagicMock()
-    logger.log_iteration.return_value = {"logged": True, "system_name": "FakeAlgo"}
+
+    logger.log_iteration.return_value = BaseRecord(
+        timestamp=datetime.now().isoformat(),
+        iteration=1,
+        system="FakeAlgo",
+        query="What is AI?",
+        response={"some": "response"},
+        sessions=[],
+        prepared_messages=[],
+        metric=[MetricState(metric_name=MetricType("COHERENCE"), metric_value=0.95)]
+    )
     return logger
 
 
 @pytest.fixture
 def fake_evaluator():
     evaluator = MagicMock()
-    evaluator.evaluate.return_value = MetricState(metric=MetricType.COHERENCE, value=0.95)
+    evaluator.evaluate.return_value = MetricState(
+        metric_name=MetricType("COHERENCE"),
+        metric_value=0.95
+    )
     return evaluator
 
 
 @pytest.fixture
 def fake_algorithm():
-    algo = MagicMock()
-    algo.__class__.__name__ = "FakeAlgorithm"
+    algo = MagicMock(spec=Dialogue)
+    algo.system_name = "FakeAlgorithm"
+
     fake_state = DialogueState(
         dialogue_sessions=[],
         code_memory_storage=None,
         tool_memory_storage=None,
         query="What is AI?",
+        _response={"some": "response"},
+        prepared_messages=[]
     )
     algo.process_dialogue.return_value = fake_state
     return algo
@@ -58,24 +77,32 @@ def reference_session():
 
 
 def test_evaluate_success(fake_logger, fake_evaluator, fake_algorithm, sessions, reference_session):
-    calc = Calculator()
-
-    results = calc.evaluate(
+    results = Calculator.evaluate(
         algorithms=[fake_algorithm],
         evaluator_functions=[fake_evaluator],
         sessions=sessions[:1],
         reference=reference_session.messages,
         logger=fake_logger,
         prompt="What is AI?",
+        subdirectory=Path("test_subdir"),
+        iteration=1
     )
 
     assert isinstance(results, list)
     assert len(results) == 1
-    assert results[0]["logged"]
+    assert isinstance(results[0], BaseRecord)
+
+    assert results[0].system == "FakeAlgo"
+    assert results[0].iteration == 1
+    assert results[0].query == "What is AI?"
+    assert isinstance(results[0].metric, list)
+    assert len(results[0].metric) > 0
+    assert results[0].metric[0].metric_value == 0.95
 
     fake_algorithm.process_dialogue.assert_called_once()
     fake_evaluator.evaluate.assert_called_once()
-    fake_logger.log_iteration.assert_called_once()
 
-    query_passed = fake_algorithm.process_dialogue.call_args[0][1]
-    assert query_passed == "What is AI?"
+    logger_call_args = fake_logger.log_iteration.call_args
+
+    assert logger_call_args[0][0] == "FakeAlgorithm"
+    assert logger_call_args[0][6][0].metric_value == 0.95

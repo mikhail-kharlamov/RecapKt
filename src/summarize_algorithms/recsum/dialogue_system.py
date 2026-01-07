@@ -1,4 +1,3 @@
-from typing import Type
 
 from src.summarize_algorithms.core.base_dialogue_system import BaseDialogueSystem
 from src.summarize_algorithms.core.memory_storage import MemoryStorage
@@ -24,8 +23,9 @@ class RecsumDialogueSystem(BaseDialogueSystem):
                 embeddings=self.embed_model, max_session_id=self.max_session_id
             ),
             query=query,
+            prepared_messages=[]
         )
 
     @property
-    def _get_dialogue_state_class(self) -> Type:
+    def _get_dialogue_state_class(self) -> type:
         return RecsumDialogueState

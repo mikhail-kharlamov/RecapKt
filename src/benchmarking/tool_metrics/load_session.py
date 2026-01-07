@@ -138,16 +138,19 @@ class Loader:
     @staticmethod
     def __process_tool_calls_data_type_2(
             tool_calls: list[dict[str, Any]],
-            tool_responses: list[dict[str, Any]]
+            tool_responses: list[dict[str, dict[str, Any]]]
     ) -> list[ToolCallBlock]:
         blocks: list[ToolCallBlock] = []
         for call in tool_calls:
             for tool_response in tool_responses:
                 if "response" in tool_response:
-                    response = tool_response.get("response")
+                    response: dict[str, Any] | None = tool_response.get("response")
                 elif "responseData" in tool_response:
-                    response = json.loads(tool_response.get("responseData"))
+                    response = json.loads(str(tool_response.get("responseData")))
                 else:
+                    continue
+
+                if response is None:
                     continue
 
                 if call["id"] == tool_response["id"]:

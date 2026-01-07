@@ -86,10 +86,10 @@ class MCPDataset:
         dialogue_sessions = dialogue_data.get("dialogue", [])
         speaker_sessions = dialogue_data.get("speaker", [])
 
-        for dialogue_msgs, speakers in zip(dialogue_sessions, speaker_sessions):
+        for dialogue_msgs, speakers in zip(dialogue_sessions, speaker_sessions, strict=False):
             messages = [
                 BaseBlock(role=speaker, content=message)
-                for message, speaker in zip(dialogue_msgs, speakers)
+                for message, speaker in zip(dialogue_msgs, speakers, strict=False)
             ]
             sessions.append(Session(messages))
 

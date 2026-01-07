@@ -27,9 +27,9 @@ class BaseLogger(ABC):
             query: str,
             iteration: int,
             sessions: list[Session],
-            state: DialogueState | None,
+            state: DialogueState,
+            subdirectory: Path,
             metrics: list[MetricState] | None = None,
-            subdirectory: str | Path | None = None
     ) -> BaseRecord:
         ...
 

@@ -1,8 +1,8 @@
 import json
 import logging
+import sys
 
 from pathlib import Path
-from typing import Any, Optional
 
 import tiktoken
 
@@ -22,12 +22,13 @@ from src.benchmarking.models.dtos import (
     StatisticsDto,
     TokenInfo,
 )
-from src.benchmarking.models.enums import MetricType
+from src.benchmarking.models.enums import AlgorithmName, MetricType
 from src.benchmarking.tool_metrics.evaluators.f1_tool_evaluator import F1ToolEvaluator
 from src.benchmarking.tool_metrics.graphs.general_trends import GeneralTrends
 from src.benchmarking.tool_metrics.graphs.graph_builder import GraphBuilder
 from src.benchmarking.tool_metrics.load_session import Loader
 from src.benchmarking.tool_metrics.statistics_calc import Statistics
+from src.summarize_algorithms.core.dialogue import Dialogue
 from src.summarize_algorithms.core.models import (
     BaseBlock,
     OpenAIModels,
@@ -57,22 +58,7 @@ class Runner:
         memory_logger = MemoryLogger()
         baseline_logger = BaselineLogger()
 
-        if name == "base_recsum":
-            algorithm = RecsumDialogueSystem(embed_code=False, embed_tool=False, system_name="BaseRecsum")
-        elif name == "base_memory_bank":
-            algorithm = MemoryBankDialogueSystem(embed_code=False, embed_tool=False, system_name="BaseMemoryBank")
-        elif name == "rag_recsum":
-            algorithm = RecsumDialogueSystem(embed_code=True, embed_tool=True, system_name="RagRecsum")
-        elif name == "rag_memory_bank":
-            algorithm = MemoryBankDialogueSystem(embed_code=True, embed_tool=True, system_name="RagMemoryBank")
-        elif name == "full_baseline":
-            algorithm = DialogueBaseline("FullBaseline")
-        elif name == "short_tools":
-            algorithm = DialogueWithShortTools("ShortTools")
-        elif name == "weights":
-            algorithm = DialogueWithWeights("Weights")
-        else:
-            algorithm = DialogueBaseline("LastBaseline")
+        algorithm: Dialogue = Runner.__init_algorithm(AlgorithmName(name))
 
         self.logger.info("Start parsing session")
         past_interactions: list[Session] = []
@@ -98,7 +84,6 @@ class Runner:
         f1_tool_evaluator_strict = F1ToolEvaluator("strict")
         f1_tool_evaluator = F1ToolEvaluator()
 
-        #1, 3, 5, 7, 9, 11,
         for count_of_sessions in [1, 3, 5, 7, 9, 11, 13, 15]:
             subdirectory: Path = Path(str(count_of_sessions))
 
@@ -114,13 +99,13 @@ class Runner:
                     prompt,
                     reference,
                     baseline_logger,
-                    None,
                     subdirectory,
+                    None,
                     True
                 )
             elif name == "last_baseline":
                 self.logger.info("Start evaluating last baseline statistics")
-                statistics: StatisticsDto = Statistics.calculate(
+                statistics = Statistics.calculate(
                     5,
                     [algorithm],
                     [f1_tool_evaluator, f1_tool_evaluator_strict],
@@ -130,13 +115,13 @@ class Runner:
                     prompt,
                     reference,
                     baseline_logger,
-                    None,
                     subdirectory,
+                    None,
                     True
                 )
             else:
                 self.logger.info("Start evaluating memory statistics")
-                statistics: StatisticsDto = Statistics.calculate(
+                statistics = Statistics.calculate(
                     5,
                     [algorithm],
                     [f1_tool_evaluator, f1_tool_evaluator_strict],
@@ -146,8 +131,8 @@ class Runner:
                     prompt,
                     reference,
                     memory_logger,
-                    None,
                     subdirectory,
+                    None,
                     True
                 )
 
@@ -156,9 +141,28 @@ class Runner:
         )
 
     @staticmethod
+    def __init_algorithm(name: AlgorithmName) -> Dialogue:
+        if name == "base_recsum":
+            return RecsumDialogueSystem(embed_code=False, embed_tool=False, system_name="BaseRecsum")
+        elif name == "base_memory_bank":
+            return MemoryBankDialogueSystem(embed_code=False, embed_tool=False, system_name="BaseMemoryBank")
+        elif name == "rag_recsum":
+            return RecsumDialogueSystem(embed_code=True, embed_tool=True, system_name="RagRecsum")
+        elif name == "rag_memory_bank":
+            return MemoryBankDialogueSystem(embed_code=True, embed_tool=True, system_name="RagMemoryBank")
+        elif name == "full_baseline":
+            return DialogueBaseline("FullBaseline")
+        elif name == "short_tools":
+            return DialogueWithShortTools("ShortTools")
+        elif name == "weights":
+            return DialogueWithWeights("Weights")
+        else:
+            return DialogueBaseline("LastBaseline")
+
+    @staticmethod
     def get_statistics_by_directory_with_logs(path: Path | str) -> StatisticsDto:
         records: list[BaseRecord] = []
-        for f in [
+        for alg_folder in [
             "BaseMemoryBank",
             "BaseRecsum",
             "FullBaseline",
@@ -166,7 +170,7 @@ class Runner:
             "RagMemoryBank",
             "RagRecsum"
         ]:
-            folder = Path(path) / f
+            folder = Path(path) / alg_folder
             for path in folder.glob(JSON_FILE_TEMPLATE):
                 print(path)
                 with path.open("r", encoding="utf-8") as f:
@@ -202,7 +206,7 @@ class Runner:
     def __divide_session(self, session: Session) -> DividedSession:
         past_interactions: list[BaseBlock] = []
         reference: list[BaseBlock] = []
-        query: Optional[BaseBlock] = None
+        query: BaseBlock | None = None
         is_query_found: bool = False
         for i in range(len(session.messages) - 1, -1, -1):
             if is_query_found:
@@ -227,7 +231,7 @@ class Runner:
         )
 
     @staticmethod
-    def tokens():
+    def tokens() -> None:
         Statistics.print_statistics(
             Runner.get_statistics_by_directory_with_logs(LOGS_PATH)
         )
@@ -265,7 +269,7 @@ class Runner:
     def build_graph(
             graph_types: list[type[GraphBuilder]],
             directories: list[Path | str],
-    ):
+    ) -> None:
         algs: list[AlgorithmStatistics] = []
         for fold in [1, 3, 5, 7, 9, 11, 13, 15]:
             ps: list[Path] = []
@@ -281,7 +285,7 @@ class Runner:
                 with p.open("r", encoding="utf8") as f:
                     j = json.load(f)
                     if "memory" in j:
-                        data = MemoryRecord.from_dict(j)
+                        data: BaseRecord = MemoryRecord.from_dict(j)
                     else:
                         data = BaseRecord.from_dict(j)
                     r.append(data)
@@ -289,8 +293,7 @@ class Runner:
             stats = Statistics.calculate_by_logs(fold, r)
             algs.extend(stats.algorithms)
             Statistics.print_statistics(stats)
-            #for graph in graph_types:
-            #    graph.build(stats, "", f". {fold}")
+
         f1_algs = []
         f1_strict = []
         for graph in graph_types:
@@ -309,15 +312,6 @@ class Runner:
         return rendered_prompt
 
     @staticmethod
-    def __print_metrics(log_records: list[dict[str, Any]]) -> None:
-        for record in log_records:
-            print(f"System: {record['system']}")
-            print("Metrics:")
-            for metric in record.get("metric"):
-                print(f"  - {metric.get("metric_name")}: {metric.get("metric_value")}")
-            print("\n")
-
-    @staticmethod
     def __count_tokens(text: str) -> int:
         encoding = tiktoken.get_encoding("o200k_base")
         tokens = encoding.encode(text)
@@ -328,13 +322,7 @@ if __name__ == "__main__":
     configure_logs(loglevel=logging.INFO)
 
     runner = Runner()
-
-    # 'c584b0f6-ee9b-4ad0-aa90-a337fb92c9b7'
-
-    #print(sys.argv)
-    #runner.run(sys.argv[1])
-    #weights short_tools
-    #runner.run(sys.argv[1])
+    runner.run(sys.argv[1])
 
     Runner.build_graph(
         [GeneralTrends],
@@ -344,18 +332,3 @@ if __name__ == "__main__":
             "Weights"
         ],
     )
-    """for directory in [
-            "BaseMemoryBank",
-            "BaseRecsum",
-            "FullBaseline",
-            "LastBaseline",
-            "RagMemoryBank",
-            "RagRecsum",
-        ]:
-        Runner.build_graph(
-            [TrendsWithQuantiles],
-            [directory],
-        )"""
-
-
-

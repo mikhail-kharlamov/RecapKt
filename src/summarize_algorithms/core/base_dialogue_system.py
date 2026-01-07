@@ -2,7 +2,7 @@ import functools
 import os
 
 from abc import ABC, abstractmethod
-from typing import Any, Optional, Type
+from typing import Any
 
 from dotenv import load_dotenv
 from langchain_community.callbacks import get_openai_callback
@@ -40,10 +40,10 @@ from src.summarize_algorithms.core.response_generator import ResponseGenerator
 class BaseDialogueSystem(ABC, Dialogue):
     def __init__(
         self,
-        llm: Optional[BaseChatModel] = None,
+        llm: BaseChatModel | None = None,
         embed_code: bool = False,
         embed_tool: bool = False,
-        embed_model: Optional[Embeddings] = None,
+        embed_model: Embeddings | None = None,
         max_session_id: int = 3,
         system_name: str | None = None
     ) -> None:
@@ -65,7 +65,7 @@ class BaseDialogueSystem(ABC, Dialogue):
 
         self.summarizer = self._build_summarizer()
         self.graph = self._build_graph()
-        self.state: Optional[DialogueState] = None
+        self.state: DialogueState | None = None
         self.embed_code = embed_code
         self.embed_tool = embed_tool
         self.embed_model = embed_model
@@ -91,7 +91,7 @@ class BaseDialogueSystem(ABC, Dialogue):
 
     @property
     @abstractmethod
-    def _get_dialogue_state_class(self) -> Type[DialogueState]:
+    def _get_dialogue_state_class(self) -> type[DialogueState]:
         pass
 
     def _build_graph(

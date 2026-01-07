@@ -1,7 +1,7 @@
 import json
 import re
-
-from typing import Any, Iterator
+from collections.abc import Iterator
+from typing import Any
 
 from src.summarize_algorithms.core.models import (
     BaseBlock,
@@ -23,7 +23,7 @@ class MessageProcessor:
         last_end = 0
 
         for match in cls.CODE_PATTERN.finditer(message_text):
-            before_code = message_text[last_end : match.start()].strip()
+            before_code = message_text[last_end: match.start()].strip()
             code_content = match.group(1).strip()
 
             if before_code:
@@ -63,7 +63,7 @@ class MessageProcessor:
         tool_calls = assistant_message.get("tool_calls", [])
         tool_responses = tool_message.get("tool_responses", [])
 
-        for tool_call, tool_response in zip(tool_calls, tool_responses):
+        for tool_call, tool_response in zip(tool_calls, tool_responses, strict=False):
             if tool_content is None:
                 tool_content = (
                     f"name: {tool_call['name']}\narguments: {tool_call['arguments']}\n"
@@ -106,9 +106,9 @@ class ChatDataset:
 
     @classmethod
     def from_file(
-        cls,
-        file_name: str = "/Users/mikhailkharlamov/Documents/RecapKt/src/benchmarking/agent_chat/"
-        "combined_chat_history_sessions.json",
+            cls,
+            file_name: str = "/Users/mikhailkharlamov/Documents/RecapKt/src/benchmarking/agent_chat/"
+                             "combined_chat_history_sessions.json",
     ) -> "ChatDataset":
         processor = MessageProcessor()
         sessions = []

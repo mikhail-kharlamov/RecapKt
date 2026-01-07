@@ -1,7 +1,6 @@
 import itertools
 import logging
 import random
-
 from dataclasses import dataclass, field
 from pathlib import Path
 
@@ -68,9 +67,9 @@ class CalculateAgentChatResponseMetrics:
         dialogue = self.dataset.sessions
         for i in range(len(dialogue)):
             self.logger.info(f"Processing dialogue {i + 1}/{len(dialogue)}")
-            self._process(dialogue[: i + 1], i + 1)
+            self._process(dialogue[: i + 1])
 
-    def _process(self, sessions: list[Session], iteration: int) -> None:
+    def _process(self, sessions: list[Session]) -> None:
         last_session = sessions[-1]
         query = ""
         for i in range(len(last_session.messages) - 1, -1, -1):
@@ -100,11 +99,11 @@ class CalculateAgentChatResponseMetrics:
         )
         self.logger.info("Started computing full session baseline response")
         full_sessions_baseline_response = self.full_baseline.process_dialogue(
-            sessions, query, iteration=iteration
+            sessions, query
         )
         self.logger.info("Started computing last session baseline response")
         last_session_baseline_response = self.last_baseline.process_dialogue(
-            [sessions[-1]], query, iteration=iteration
+            [sessions[-1]], query
         )
 
         self.logger.info("Started computing base recsum single response score")
@@ -134,7 +133,6 @@ class CalculateAgentChatResponseMetrics:
             dialogue_context=dialogue_context,
             assistant_answer=last_session_baseline_response.response,
         )
-
 
         self._single_eval_update(
             self.base_recsum_single_result, base_recsum_single_score
@@ -285,7 +283,8 @@ class CalculateAgentChatResponseMetrics:
             ("Last Session Baseline", self.last_baseline),
         ]:
             print(
-                f"{name:<25} | {algo.prompt_tokens:<15} | {algo.completion_tokens:<18} | {algo.total_cost:<12.5f}"  # type: ignore
+                f"{name:<25} | {algo.prompt_tokens:<15} | {algo.completion_tokens:<18} | {algo.total_cost:<12.5f}"
+                # type: ignore
             )
 
         print("\n===Processed Messages ===")

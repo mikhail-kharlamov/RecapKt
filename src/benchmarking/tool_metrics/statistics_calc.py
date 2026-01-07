@@ -36,8 +36,8 @@ class Statistics:
             prompt: str,
             reference: list[BaseBlock],
             logger: BaseLogger,
+            subdirectory: Path,
             tools: list[dict[str, Any]] | None = None,
-            subdirectory: str | Path | None = None,
             shuffle: bool = False
     ) -> StatisticsDto:
         system_logger = logging.getLogger()
@@ -62,8 +62,8 @@ class Statistics:
                 prompt,
                 reference,
                 logger,
-                tools,
                 subdirectory,
+                tools,
                 i
             )
 
@@ -82,8 +82,11 @@ class Statistics:
     def calculate_by_logs(
             count_of_launches: int,
             metrics: list[BaseRecord],
-            system_logger: logging.Logger = logging.getLogger()
+            system_logger: logging.Logger | None = None
     ) -> StatisticsDto:
+        if system_logger is None:
+            system_logger = logging.getLogger()
+
         values_by_alg_metric: dict[tuple[str, MetricType, int], list[float]] = {}
         for _ in range(count_of_launches):
             for record in metrics:
@@ -102,7 +105,7 @@ class Statistics:
             count_of_launches: int,
             system_logger: Logger,
             values_by_alg_metric: dict[tuple[str, MetricType, int], list[float]]
-    ):
+    ) -> StatisticsDto:
         algorithm_stats: list[AlgorithmStatistics] = []
         system_logger.info("Getting statistics...")
         for (alg_name, metric_type, count_of_sessions), values in values_by_alg_metric.items():
@@ -138,12 +141,13 @@ class Statistics:
         )
 
     @staticmethod
-    def calculate_mode[NumberT](values: list[NumberT]) -> NumberT:
-        if isinstance(NumberT, int):
+    def calculate_mode(values: list[int | float]) -> int | float:
+        if all(isinstance(value, int) for value in values):
             counter = Counter(values)
             mode, _ = counter.most_common(1)[0]
             return mode
 
+        values = [float(value) for value in values]
         values.sort()
         left: float = values[0]
         right: float = values[2]

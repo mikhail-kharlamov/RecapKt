@@ -12,9 +12,8 @@ class BaseEvaluator(ABC):
     """
     Base class for functions that evaluates llm's memory algorithms.
     """
-    def __init__(self, tool: str | None = None):
-        self._tool = tool
-        print(tool)
+    def __init__(self, mode: str | None = None):
+        self._mode = mode
 
     @abstractmethod
     def evaluate(

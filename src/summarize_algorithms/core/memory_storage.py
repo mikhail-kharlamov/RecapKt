@@ -1,8 +1,9 @@
 import math
 import os
 
+from collections.abc import Iterable
 from dataclasses import dataclass
-from typing import Any, Iterable, Optional
+from typing import Any
 
 import faiss
 import numpy as np
@@ -25,7 +26,7 @@ class MemoryFragment:
 class MemoryStorage:
     def __init__(
         self,
-        embeddings: Optional[Embeddings] = None,
+        embeddings: Embeddings | None = None,
         max_session_id: int = 3,
     ) -> None:
         load_dotenv()

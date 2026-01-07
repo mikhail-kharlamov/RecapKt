@@ -2,7 +2,7 @@ from dataclasses import dataclass, field
 from decimal import Decimal
 from typing import Any
 
-from dataclasses_json import dataclass_json
+from dataclasses_json import DataClassJsonMixin, dataclass_json
 
 from src.benchmarking.models.enums import MetricType
 from src.summarize_algorithms.core.models import BaseBlock, OpenAIModels
@@ -30,7 +30,7 @@ class AlgorithmStatistics:
     mean: float
     variance: float
     runs: list[AlgorithmRun]
-    #mode: int | float
+    # mode: int | float
 
 
 @dataclass
@@ -45,9 +45,8 @@ class MetricState:
     metric_value: float | int
 
 
-@dataclass_json
 @dataclass
-class BaseRecord:
+class BaseRecord(DataClassJsonMixin):
     timestamp: str
     iteration: int
     system: str
@@ -58,13 +57,11 @@ class BaseRecord:
     metric: list[MetricState] | None = field(default=None)
 
 
-@dataclass_json
 @dataclass
 class MemoryRecord(BaseRecord):
     memory: dict[str, Any] = field(default_factory=dict)
 
 
-@dataclass_json
 @dataclass
 class Evaluation:
     memory: dict[str, Any] = field(default_factory=dict)
@@ -109,9 +106,8 @@ MODEL_PRICES: dict[OpenAIModels, ModelPrice] = {
 }
 
 
-@dataclass_json
 @dataclass
-class TokenInfo:
+class TokenInfo(DataClassJsonMixin):
     model: OpenAIModels
     price: ModelPrice
     input_tokens: int

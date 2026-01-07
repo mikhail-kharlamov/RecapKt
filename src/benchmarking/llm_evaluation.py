@@ -2,7 +2,7 @@ import os
 
 from abc import ABC, abstractmethod
 from enum import Enum
-from typing import Any, Generic, Optional, TypeVar
+from typing import Any, TypeVar
 
 from dotenv import load_dotenv
 from langchain_core.language_models import BaseChatModel
@@ -80,8 +80,8 @@ SingleResultType = TypeVar("SingleResultType", bound=BaseModel)
 PairwiseResultType = TypeVar("PairwiseResultType", bound=BaseModel)
 
 
-class BaseLLMEvaluation(Generic[SingleResultType, PairwiseResultType], ABC):
-    def __init__(self, llm: Optional[BaseChatModel] = None) -> None:
+class BaseLLMEvaluation[SingleResultType, PairwiseResultType](ABC):
+    def __init__(self, llm: BaseChatModel | None = None) -> None:
         load_dotenv()
 
         api_key: str | None = os.getenv("OPENAI_API_KEY")
@@ -123,7 +123,7 @@ class BaseLLMEvaluation(Generic[SingleResultType, PairwiseResultType], ABC):
         )
 
     @staticmethod
-    def _safe_invoke(chain: RunnableSerializable, params: dict[str, str]) -> Any:
+    def _safe_invoke(chain: RunnableSerializable, params: dict[str, Any]) -> Any:
         try:
             return chain.invoke(params)
         except Exception as e:
@@ -143,12 +143,12 @@ class LLMResponseEvaluation(BaseLLMEvaluation[SingleResult, PairwiseResult]):
     def _get_pairwise_result_model(self) -> type[PairwiseResult]:
         return PairwiseResult
 
-    def evaluate_single(self, context: str, memory: str, response: str) -> SingleResult:
+    def evaluate_single(self, context: str, memory: str, response: str | dict[str, Any]) -> SingleResult:
         params = {"context": context, "memory": memory, "response": response}
         return self._safe_invoke(self.single_eval_chain, params)
 
     def evaluate_pairwise(
-        self, context: str, memory: str, first_response: str, second_response: str
+        self, context: str, memory: str, first_response: str | dict[str, Any], second_response: str | dict[str, Any]
     ) -> PairwiseResult:
         params = {
             "context": context,
@@ -203,7 +203,7 @@ class LLMChatAgentEvaluation(
         return PairwiseChatAgentResult
 
     def evaluate_single(
-        self, dialogue_context: str, assistant_answer: str
+        self, dialogue_context: str, assistant_answer: str | dict[str, Any]
     ) -> SingleChatAgentResult:
         params = {
             "dialogue_context": dialogue_context,
@@ -212,7 +212,7 @@ class LLMChatAgentEvaluation(
         return self._safe_invoke(self.single_eval_chain, params)
 
     def evaluate_pairwise(
-        self, dialogue_context: str, first_answer: str, second_answer: str
+        self, dialogue_context: str, first_answer: str | dict[str, Any], second_answer: str | dict[str, Any]
     ) -> PairwiseChatAgentResult:
         params = {
             "dialogue_context": dialogue_context,

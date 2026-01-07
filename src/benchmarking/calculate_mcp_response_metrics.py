@@ -94,7 +94,7 @@ class CalculateMCPResponseMetrics(CalculateMCPMetrics):
             recsum_response = self.recsum.process_dialogue(
                 dialogue, query.content
             ).response
-            baseline_response = self.baseline.process_dialogue(dialogue, query.content, self.message_count)
+            baseline_response = self.baseline.process_dialogue(dialogue, query.content)
 
             self._update_semantic_scores(
                 recsum_response, baseline_response.response, ideal_response.content
@@ -112,7 +112,7 @@ class CalculateMCPResponseMetrics(CalculateMCPMetrics):
             )
 
     def _update_semantic_scores(
-        self, recsum_response: str, baseline_response: str, ideal_response: str
+        self, recsum_response: str | dict[str, Any], baseline_response: str | dict[str, Any], ideal_response: str
     ) -> None:
         recsum_score = self.semantic_scorer.compute_similarity(
             recsum_response, ideal_response
@@ -129,7 +129,7 @@ class CalculateMCPResponseMetrics(CalculateMCPMetrics):
         self._baseline_semantic_data.f1.append(baseline_score.f1)
 
     def _update_llm_single_scores(
-        self, recsum_response: str, baseline_response: str, context: str, memory: str
+        self, recsum_response: str | dict[str, Any], baseline_response: str | dict[str, Any], context: str, memory: str
     ) -> None:
         recsum_score = self.llm_scorer.evaluate_single(
             context=context, memory=memory, response=recsum_response
@@ -148,7 +148,7 @@ class CalculateMCPResponseMetrics(CalculateMCPMetrics):
         self._baseline_llm_data.coherency.append(baseline_score.coherency_score)
 
     def _update_llm_pairwise_scores(
-        self, context: str, memory: str, recsum_response: str, baseline_response: str
+        self, context: str, memory: str, recsum_response: str | dict[str, Any], baseline_response: str | dict[str, Any]
     ) -> None:
         randomize_order = random.random() < 0.5
 

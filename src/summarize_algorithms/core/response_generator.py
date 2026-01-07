@@ -11,7 +11,7 @@ from langchain_core.output_parsers import StrOutputParser
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_core.runnables import Runnable
 
-from src.summarize_algorithms.core.models import Session
+from src.summarize_algorithms.core.models import ResponseContext, Session
 
 
 class ResponseGenerator:
@@ -43,8 +43,8 @@ class ResponseGenerator:
 
         return self._prompt_template | self._llm | StrOutputParser()
 
-    def _get_return_action_plan(self):
-         return {
+    def _get_return_action_plan(self) -> dict[str, Any]:
+        return {
             "type": "function",
             "function": {
                 "name": "return_action_plan",
@@ -53,13 +53,9 @@ class ResponseGenerator:
             },
         }
 
-    def _prepare_history(self, sessions: list[Session], query: str) -> list[BaseMessage]:
-        history = []
-        for session in sessions:
-            history.extend(session.to_langchain_messages())
-
+    def _prepare_history(self, sessions: Session, query: str) -> list[BaseMessage]:
         trimmed_history = trim_messages(
-            history,
+            sessions.to_langchain_messages(),
             token_counter=self._llm,
             max_tokens=100000,
             strategy="last",
@@ -73,12 +69,12 @@ class ResponseGenerator:
 
     def generate_response(
             self,
-            sessions: list[Session],
-            code_memory: list[BaseMessage],
-            tool_memory: list[BaseMessage],
-            text_memory: list[BaseMessage],
+            last_session: Session,
+            code_memory: Session,
+            tool_memory: Session,
+            text_memory: Session,
             query: str
-    ) -> Any:
+    ) -> ResponseContext:
         try:
             memory_context = f"""
             Retrieval Information:
@@ -89,7 +85,7 @@ class ResponseGenerator:
 
             memory_msg = SystemMessage(content=memory_context)
 
-            history_messages = self._prepare_history(sessions, query)
+            history_messages = self._prepare_history(last_session, query)
 
             full_history = [memory_msg] + history_messages
 
@@ -97,7 +93,7 @@ class ResponseGenerator:
                 "history": full_history
             })
 
-            return response
+            return ResponseContext(response=response, prepared_history=full_history)
 
         except Exception as e:
             raise ConnectionError(f"API request failed: {str(e)}") from e

@@ -16,9 +16,9 @@ class MemoryLogger(BaseLogger):
             query: str,
             iteration: int,
             sessions: list[Session],
-            state: DialogueState | None,
+            state: DialogueState,
+            subdirectory: Path,
             metrics: list[MetricState] | None = None,
-            subdirectory: str | Path | None = None
     ) -> MemoryRecord:
         self.logger.info(f"Logging iteration {iteration} to {self.log_dir}")
 
@@ -44,13 +44,13 @@ class MemoryLogger(BaseLogger):
             record["metric"] = metrics_dict
 
         if subdirectory is not None:
-            directory: Path | str = self.log_dir / subdirectory
+            directory: Path = self.log_dir / subdirectory
             os.makedirs(directory, exist_ok=True)
         else:
-            directory: Path | str = self.log_dir
+            directory = self.log_dir
 
         with open(
-                directory / (system_name + "-" + record["timestamp"] + ".json"),
+                directory / (system_name + "-" + str(record["timestamp"]) + ".json"),
                 "a",
                 encoding="utf-8"
         ) as f:

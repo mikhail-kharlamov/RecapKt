@@ -1,7 +1,6 @@
 import logging
 import os
-
-from typing import Any, Optional
+from typing import Any
 
 from dotenv import load_dotenv
 from langchain_community.callbacks import get_openai_callback
@@ -36,7 +35,7 @@ from src.summarize_algorithms.core.models import (
 
 
 class DialogueBaseline(Dialogue):
-    def __init__(self, system_name: str, llm: Optional[BaseChatModel] = None) -> None:
+    def __init__(self, system_name: str, llm: BaseChatModel | None = None) -> None:
         load_dotenv()
 
         self.system_name = system_name
@@ -80,7 +79,7 @@ class DialogueBaseline(Dialogue):
         return prompt | self.llm | StrOutputParser()
 
     @staticmethod
-    def _get_return_action_plan(structure):
+    def _get_return_action_plan(structure: dict[str, Any]) -> dict[str, Any]:
         return {
             "type": "function",
             "function": {
@@ -146,17 +145,15 @@ class DialogueBaseline(Dialogue):
         else:
             chain = chat_prompt | self.llm | StrOutputParser()
 
-
         @retry(
             stop=stop_after_attempt(3),
             wait=wait_exponential(multiplier=1, min=2, max=10),
             retry=retry_if_exception_type(OutputParserException),
             reraise=True
         )
-        def invoke_with_retry(input_data):
+        def invoke_with_retry(input_data: dict[str, list[BaseMessage]]) -> Any:
             logging.info("Attempting to invoke chain...")
             return chain.invoke(input_data)
-
 
         with get_openai_callback() as cb:
             result = invoke_with_retry({"history": context})

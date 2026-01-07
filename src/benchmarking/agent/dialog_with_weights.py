@@ -1,8 +1,8 @@
 from decimal import Decimal
 from math import ceil
+from typing import override
 
 from langchain_core.messages import BaseMessage, HumanMessage
-from typing_extensions import override
 
 from src.benchmarking.agent.dialogue_baseline import DialogueBaseline
 from src.summarize_algorithms.core.models import Session

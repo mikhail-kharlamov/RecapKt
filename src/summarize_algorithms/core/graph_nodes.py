@@ -1,7 +1,11 @@
 from src.summarize_algorithms.core.base_summarizer import BaseSummarizer
 from src.summarize_algorithms.core.models import (
+    BaseBlock,
     DialogueState,
+    MemoryBankDialogueState,
+    MemoryDialogueState,
     RecsumDialogueState,
+    ResponseContext,
     Session,
     UpdateState,
 )
@@ -9,12 +13,8 @@ from src.summarize_algorithms.core.response_generator import ResponseGenerator
 
 
 def update_memory_node(
-    summarizer_instance: BaseSummarizer, state: DialogueState
-) -> DialogueState:
-    from src.summarize_algorithms.memory_bank.dialogue_system import (
-        MemoryBankDialogueState,
-    )
-
+    summarizer_instance: BaseSummarizer, state: MemoryDialogueState
+) -> MemoryDialogueState:
     current_dialogue_session = state.dialogue_sessions[state.current_session_index]
 
     if state.code_memory_storage is not None:
@@ -53,14 +53,10 @@ def update_memory_node(
 
 def generate_response_node(
     response_generator_instance: ResponseGenerator,
-    state: DialogueState
-) -> DialogueState:
-    from src.summarize_algorithms.memory_bank.dialogue_system import (
-        MemoryBankDialogueState,
-    )
-
+    state: MemoryDialogueState
+) -> MemoryDialogueState:
     if isinstance(state, RecsumDialogueState):
-        dialogue_memory = state.latest_memory
+        dialogue_memory: list[BaseBlock] = [BaseBlock(role="SYSTEM", content=state.latest_memory)]
     elif isinstance(state, MemoryBankDialogueState):
         dialogue_memory = state.text_memory_storage.find_similar(state.query)
     else:
@@ -68,25 +64,24 @@ def generate_response_node(
             f"Unsupported status type for update_memory_node: {type(state)}"
         )
 
+    code_memory: list[BaseBlock] = []
     if state.code_memory_storage is not None:
         code_memory = state.code_memory_storage.find_similar(state.query)
-    else:
-        code_memory = "Code Memory is missing"
 
+    tool_memory: list[BaseBlock] = []
     if state.tool_memory_storage is not None:
         tool_memory = state.tool_memory_storage.find_similar(state.query)
-    else:
-        tool_memory = "Tool Memory is missing"
 
-    final_response = response_generator_instance.generate_response(
-        text_memory=Session(dialogue_memory).to_langchain_messages(),
-        code_memory=Session(code_memory).to_langchain_messages(),
-        tool_memory=Session(tool_memory).to_langchain_messages(),
+    final_response: ResponseContext = response_generator_instance.generate_response(
+        text_memory=Session(dialogue_memory),
+        code_memory=Session(code_memory),
+        tool_memory=Session(tool_memory),
         query=state.query,
-        sessions=[state.last_session]
+        last_session=state.last_session
     )
 
-    state._response = final_response
+    state._response = final_response.response
+    state.prepared_messages = final_response.prepared_history
     return state
 
 
