@@ -1,11 +1,12 @@
 from unittest.mock import MagicMock, create_autospec
 
 import pytest
+
 from langchain_core.language_models import BaseChatModel
 from langchain_core.messages import HumanMessage, SystemMessage
 from langchain_core.prompts import ChatPromptTemplate
 
-from src.summarize_algorithms.core.models import ResponseContext, Session, BaseBlock
+from src.summarize_algorithms.core.models import BaseBlock, ResponseContext, Session
 from src.summarize_algorithms.core.response_generator import ResponseGenerator
 
 

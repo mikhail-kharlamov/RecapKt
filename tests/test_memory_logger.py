@@ -1,10 +1,11 @@
 import json
+
 from pathlib import Path
 
 import pytest
 
 from src.benchmarking.memory_logger import MemoryLogger
-from src.benchmarking.models.dtos import MetricState, MemoryRecord
+from src.benchmarking.models.dtos import MemoryRecord, MetricState
 from src.benchmarking.models.enums import MetricType
 from src.summarize_algorithms.core.models import (
     BaseBlock,

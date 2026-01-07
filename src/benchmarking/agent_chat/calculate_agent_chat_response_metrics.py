@@ -1,6 +1,7 @@
 import itertools
 import logging
 import random
+
 from dataclasses import dataclass, field
 from pathlib import Path
 
@@ -282,9 +283,12 @@ class CalculateAgentChatResponseMetrics:
             ("Full Sessions Baseline", self.full_baseline),
             ("Last Session Baseline", self.last_baseline),
         ]:
+            pt = algo.prompt_tokens  # type: ignore[attr-defined]
+            ct = algo.completion_tokens  # type: ignore[attr-defined]
+            cost = algo.total_cost  # type: ignore[attr-defined]
+
             print(
-                f"{name:<25} | {algo.prompt_tokens:<15} | {algo.completion_tokens:<18} | {algo.total_cost:<12.5f}"
-                # type: ignore
+                f"{name:<25} | {pt:<15} | {ct:<18} | {cost:<12.5f}"
             )
 
         print("\n===Processed Messages ===")

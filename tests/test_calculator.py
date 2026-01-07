@@ -1,18 +1,18 @@
+from datetime import datetime
 from pathlib import Path
 from unittest.mock import MagicMock
-from datetime import datetime
 
 import pytest
 
-from src.benchmarking.models.dtos import MetricState, BaseRecord
+from src.benchmarking.models.dtos import BaseRecord, MetricState
 from src.benchmarking.models.enums import MetricType
 from src.benchmarking.tool_metrics.calculator import Calculator
+from src.summarize_algorithms.core.dialogue import Dialogue
 from src.summarize_algorithms.core.models import (
     BaseBlock,
     DialogueState,
     Session,
 )
-from src.summarize_algorithms.core.dialogue import Dialogue
 
 
 @pytest.fixture
