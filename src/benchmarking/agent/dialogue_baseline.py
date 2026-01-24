@@ -5,6 +5,7 @@ from typing import Any
 
 from dotenv import load_dotenv
 from langchain_community.callbacks import get_openai_callback
+from langchain_community.chat_models import ChatOllama
 from langchain_core.exceptions import OutputParserException
 from langchain_core.language_models import BaseChatModel
 from langchain_core.messages import (
@@ -31,15 +32,35 @@ from src.summarize_algorithms.core.dialogue import Dialogue
 from src.summarize_algorithms.core.models import (
     DialogueState,
     OpenAIModels,
-    Session,
+    Session, LocalModels,
 )
 
 
 class DialogueBaseline(Dialogue):
-    def __init__(self, system_name: str, llm: BaseChatModel | None = None) -> None:
+    def __init__(self, system_name: str, llm: BaseChatModel | None = None, is_local=False) -> None:
         load_dotenv()
 
         self.system_name = system_name
+
+        self._initialize_model(llm, is_local)
+
+        self.prompt_template = BASELINE_PROMPT
+        self.prompt_tokens = 0
+        self.completion_tokens = 0
+        self.total_cost = 0.0
+
+        self.baseline_logger = BaselineLogger()
+
+    def _initialize_model(self, llm: BaseChatModel | None = None, is_local: bool = False) -> None:
+        if is_local:
+            self.llm = ChatOllama(
+                model=LocalModels.GEMMA_2_9_B.value,
+                temperature=0.7,
+                keep_alive="1h"
+            )
+            return
+
+        load_dotenv()
 
         api_key: str | None = os.getenv("OPENAI_API_KEY")
         if api_key is not None:
@@ -49,13 +70,6 @@ class DialogueBaseline(Dialogue):
             )
         else:
             raise ValueError("OPENAI_API_KEY environment variable is not loaded")
-
-        self.prompt_template = BASELINE_PROMPT
-        self.prompt_tokens = 0
-        self.completion_tokens = 0
-        self.total_cost = 0.0
-
-        self.baseline_logger = BaselineLogger()
 
     def _build_chain(
             self,
