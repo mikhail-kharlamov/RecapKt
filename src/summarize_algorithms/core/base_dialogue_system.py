@@ -6,6 +6,7 @@ from typing import Any
 
 from dotenv import load_dotenv
 from langchain_community.callbacks import get_openai_callback
+from langchain_community.chat_models import ChatOllama
 from langchain_core.embeddings import Embeddings
 from langchain_core.language_models import BaseChatModel
 from langchain_core.prompts import (
@@ -31,7 +32,7 @@ from src.summarize_algorithms.core.models import (
     DialogueState,
     OpenAIModels,
     Session,
-    WorkflowNode,
+    WorkflowNode, LocalModels,
 )
 from src.summarize_algorithms.core.prompts import RESPONSE_GENERATION_PROMPT
 from src.summarize_algorithms.core.response_generator import ResponseGenerator
@@ -45,23 +46,12 @@ class BaseDialogueSystem(ABC, Dialogue):
         embed_tool: bool = False,
         embed_model: Embeddings | None = None,
         max_session_id: int = 3,
-        system_name: str | None = None
+        system_name: str | None = None,
+        is_local: bool = False,
     ) -> None:
-        if system_name is None:
-            self.system_name = self.__class__.__name__
-        else:
-            self.system_name = system_name
+        self.system_name = system_name or self.__class__.__name__
 
-        load_dotenv()
-
-        api_key: str | None = os.getenv("OPENAI_API_KEY")
-        if api_key is not None:
-            self.llm = llm or ChatOpenAI(
-                model=OpenAIModels.GPT_4_O_MINI.value,
-                api_key=SecretStr(api_key)
-            )
-        else:
-            raise ValueError("OPENAI_API_KEY environment variable is not loaded")
+        self._initialize_model(llm, is_local)
 
         self.summarizer = self._build_summarizer()
         self.graph = self._build_graph()
@@ -93,6 +83,30 @@ class BaseDialogueSystem(ABC, Dialogue):
     @abstractmethod
     def _get_dialogue_state_class(self) -> type[DialogueState]:
         pass
+
+    def _initialize_model(self, llm: BaseChatModel | None = None, is_local: bool = False) -> None:
+        load_dotenv()
+
+        api_key: str | None = os.getenv("OPENAI_API_KEY")
+        if api_key is not None:
+            self.memory_llm = ChatOpenAI(
+                model=OpenAIModels.GPT_5_MINI.value,
+                api_key=SecretStr(api_key)
+            )
+        else:
+            raise ValueError("OPENAI_API_KEY environment variable is not loaded")
+
+        if is_local:
+            self.llm = ChatOllama(
+                model=LocalModels.GEMMA_2_9_B.value,
+                temperature=0.7,
+                keep_alive="1h"
+            )
+        else:
+            self.llm = llm or ChatOpenAI(
+                model=OpenAIModels.GPT_4_O_MINI.value,
+                api_key=SecretStr(api_key)
+            )
 
     def _build_graph(
             self,

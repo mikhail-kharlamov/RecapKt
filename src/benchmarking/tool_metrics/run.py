@@ -307,8 +307,8 @@ class Runner:
                 else:
                     f1_strict.append(alg)
 
-            graph.build(StatisticsDto(algorithms=f1_algs), "", " lax")
-            graph.build(StatisticsDto(algorithms=f1_strict), "", " strict")
+            graph.build(StatisticsDto(algorithms=f1_algs), "", "nonstrict")
+            graph.build(StatisticsDto(algorithms=f1_strict), "", "strict")
 
     def __prepare_system_prompt(self) -> str:
         template = self._env.get_template("first_stage.j2")
@@ -325,8 +325,8 @@ class Runner:
 if __name__ == "__main__":
     configure_logs(loglevel=logging.INFO)
 
-    runner = Runner()
-    runner.run(sys.argv[1])
+    #runner = Runner()
+    #runner.run(sys.argv[1])
 
     Runner.build_graph(
         [GeneralTrends],
@@ -337,6 +337,7 @@ if __name__ == "__main__":
             AlgorithmDirectory.RAG_RECSUM.value,
             AlgorithmDirectory.RAG_MEMORY_BANK.value,
             AlgorithmDirectory.BASE_MEMORY_BANK.value,
+            AlgorithmDirectory.BASE_RECSUM.value,
             AlgorithmDirectory.WEIGHTS.value,
             AlgorithmDirectory.SHORT_TOOLS.value,
         ]

@@ -7,7 +7,7 @@ from src.summarize_algorithms.memory_bank.summarizer import SessionSummarizer
 
 class MemoryBankDialogueSystem(BaseDialogueSystem):
     def _build_summarizer(self) -> SessionSummarizer:
-        return SessionSummarizer(self.llm, SESSION_SUMMARY_PROMPT)
+        return SessionSummarizer(self.memory_llm, SESSION_SUMMARY_PROMPT)
 
     def _get_initial_state(
         self, sessions: list[Session], last_session: Session, query: str

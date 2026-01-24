@@ -8,7 +8,7 @@ from src.summarize_algorithms.recsum.summarizer import RecursiveSummarizer
 
 class RecsumDialogueSystem(BaseDialogueSystem):
     def _build_summarizer(self) -> RecursiveSummarizer:
-        return RecursiveSummarizer(self.llm, MEMORY_UPDATE_PROMPT_TEMPLATE)
+        return RecursiveSummarizer(self.memory_llm, MEMORY_UPDATE_PROMPT_TEMPLATE)
 
     def _get_initial_state(
         self, sessions: list[Session], last_session: Session, query: str

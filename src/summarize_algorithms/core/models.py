@@ -26,6 +26,10 @@ class OpenAIModels(Enum):
     GPT_4_O_MINI = "gpt-4o-mini"
 
 
+class LocalModels(Enum):
+    GEMMA_2_9_B = "gemma2:9b"
+
+
 @dataclass
 class BaseBlock:
     role: str

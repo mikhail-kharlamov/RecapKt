@@ -67,6 +67,25 @@ class ResponseGenerator:
 
         return trimmed_history
 
+    @staticmethod
+    def _prepare_retrieval_information(
+            code_memory: Session,
+            tool_memory: Session,
+            text_memory: Session
+    ) -> list[BaseMessage]:
+        messages: list[BaseMessage] = [SystemMessage(content="Retrieval Information:")]
+        if len(code_memory.messages) != 0:
+            messages.append(SystemMessage(content="Code Memory:"))
+            messages.extend(code_memory.to_langchain_messages())
+
+        if len(tool_memory.messages) != 0:
+            messages.append(SystemMessage(content="Tool Memory:"))
+            messages.extend(tool_memory.to_langchain_messages())
+
+        messages.append(SystemMessage(content="Text Memory:"))
+        messages.extend(text_memory.to_langchain_messages())
+        return messages
+
     def generate_response(
             self,
             last_session: Session,
@@ -76,18 +95,15 @@ class ResponseGenerator:
             query: str
     ) -> ResponseContext:
         try:
-            memory_context = f"""
-            Retrieval Information:
-            - Code Memory: {code_memory}
-            - Tool Memory: {tool_memory}
-            - Text Memory: {text_memory}
-            """
+            memory_msg: list[BaseMessage] = ResponseGenerator._prepare_retrieval_information(
+                code_memory,
+                tool_memory,
+                text_memory
+            )
 
-            memory_msg = SystemMessage(content=memory_context)
+            history_messages: list[BaseMessage] = self._prepare_history(last_session, query)
 
-            history_messages = self._prepare_history(last_session, query)
-
-            full_history = [memory_msg] + history_messages
+            full_history: list[BaseMessage] = memory_msg + [SystemMessage(content="")] + history_messages
 
             response = self._chain.invoke({
                 "history": full_history
