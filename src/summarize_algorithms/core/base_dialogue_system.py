@@ -6,7 +6,6 @@ from typing import Any
 
 from dotenv import load_dotenv
 from langchain_community.callbacks import get_openai_callback
-from langchain_ollama.chat_models import ChatOllama
 from langchain_core.embeddings import Embeddings
 from langchain_core.language_models import BaseChatModel
 from langchain_core.prompts import (
@@ -14,6 +13,7 @@ from langchain_core.prompts import (
     MessagesPlaceholder,
     PromptTemplate,
 )
+from langchain_ollama.chat_models import ChatOllama
 from langchain_openai import ChatOpenAI
 from langgraph.constants import END
 from langgraph.graph import StateGraph
@@ -30,9 +30,10 @@ from src.summarize_algorithms.core.graph_nodes import (
 )
 from src.summarize_algorithms.core.models import (
     DialogueState,
+    LocalModels,
     OpenAIModels,
     Session,
-    WorkflowNode, LocalModels,
+    WorkflowNode,
 )
 from src.summarize_algorithms.core.prompts import RESPONSE_GENERATION_PROMPT
 from src.summarize_algorithms.core.response_generator import ResponseGenerator

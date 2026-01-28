@@ -1,8 +1,7 @@
 from dataclasses import dataclass
+from typing import override
 
-from typing_extensions import override
-
-from src.summarize_algorithms.core.models import BaseBlock, ToolCallBlock, CodeBlock
+from src.summarize_algorithms.core.models import BaseBlock, CodeBlock, ToolCallBlock
 
 
 @dataclass

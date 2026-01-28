@@ -5,7 +5,6 @@ from typing import Any
 
 from dotenv import load_dotenv
 from langchain_community.callbacks import get_openai_callback
-from langchain_ollama.chat_models import ChatOllama
 from langchain_core.exceptions import OutputParserException
 from langchain_core.language_models import BaseChatModel
 from langchain_core.messages import (
@@ -17,6 +16,7 @@ from langchain_core.messages import (
 from langchain_core.output_parsers import StrOutputParser
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
 from langchain_core.runnables import Runnable
+from langchain_ollama.chat_models import ChatOllama
 from langchain_openai import ChatOpenAI
 from pydantic import SecretStr
 from tenacity import (
@@ -31,8 +31,9 @@ from src.benchmarking.prompts import BASELINE_PROMPT
 from src.summarize_algorithms.core.dialogue import Dialogue
 from src.summarize_algorithms.core.models import (
     DialogueState,
+    LocalModels,
     OpenAIModels,
-    Session, LocalModels,
+    Session,
 )
 
 
