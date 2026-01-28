@@ -6,7 +6,7 @@ from typing import Any
 
 from dotenv import load_dotenv
 from langchain_community.callbacks import get_openai_callback
-from langchain_community.chat_models import ChatOllama
+from langchain_ollama.chat_models import ChatOllama
 from langchain_core.embeddings import Embeddings
 from langchain_core.language_models import BaseChatModel
 from langchain_core.prompts import (
@@ -47,7 +47,7 @@ class BaseDialogueSystem(ABC, Dialogue):
         embed_model: Embeddings | None = None,
         max_session_id: int = 3,
         system_name: str | None = None,
-        is_local: bool = False,
+        is_local: bool = True,
     ) -> None:
         self.system_name = system_name or self.__class__.__name__
 
@@ -89,16 +89,21 @@ class BaseDialogueSystem(ABC, Dialogue):
 
         api_key: str | None = os.getenv("OPENAI_API_KEY")
         if api_key is not None:
-            self.memory_llm = ChatOpenAI(
-                model=OpenAIModels.GPT_5_MINI.value,
-                api_key=SecretStr(api_key)
+            #self.memory_llm = ChatOpenAI(
+            #    model=OpenAIModels.GPT_5_MINI.value,
+            #    api_key=SecretStr(api_key)
+            #)
+            self.memory_llm = ChatOllama(
+                model=LocalModels.QWEN_2_5_14_B.value,
+                temperature=0.7,
+                keep_alive="1h"
             )
         else:
             raise ValueError("OPENAI_API_KEY environment variable is not loaded")
 
         if is_local:
             self.llm = ChatOllama(
-                model=LocalModels.GEMMA_2_9_B.value,
+                model=LocalModels.QWEN_2_5_14_B.value,
                 temperature=0.7,
                 keep_alive="1h"
             )
@@ -162,7 +167,7 @@ class BaseDialogueSystem(ABC, Dialogue):
             tools: list[dict[str, Any]] | None = None
     ) -> DialogueState:
         graph = self._build_graph(structure, tools, system_prompt_template=system_prompt)
-        initial_state = self._get_initial_state(sessions[:-1], sessions[-1], system_prompt)
+        initial_state = self._get_initial_state(sessions, sessions[-1], system_prompt)
 
         with get_openai_callback() as cb:
             result_state = graph.invoke(initial_state)

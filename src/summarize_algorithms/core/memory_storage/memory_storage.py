@@ -2,7 +2,6 @@ import math
 import os
 
 from collections.abc import Iterable
-from dataclasses import dataclass
 from typing import Any
 
 import faiss
@@ -13,14 +12,8 @@ from langchain_core.embeddings import Embeddings
 from langchain_openai import OpenAIEmbeddings
 from pydantic import SecretStr
 
-from src.summarize_algorithms.core.models import BaseBlock, CodeBlock
-
-
-@dataclass
-class MemoryFragment:
-    embed_content: str
-    content: str
-    session_id: int
+from src.summarize_algorithms.core.memory_storage.models import MemoryFragment, ToolMemoryFragment, CodeMemoryFragment
+from src.summarize_algorithms.core.models import BaseBlock, CodeBlock, ToolCallBlock
 
 
 class MemoryStorage:
@@ -81,16 +74,18 @@ class MemoryStorage:
         self.index.add(weighted_embeddings)
 
         for memory in memories:
-            if isinstance(memory, CodeBlock):
-                content = memory.code
-            else:
-                content = memory.content
-
-            self.memory_list.append(
-                MemoryFragment(
-                    embed_content=memory.content, content=content, session_id=session_id
+            if isinstance(memory, ToolCallBlock):
+                self.memory_list.append(
+                    ToolMemoryFragment.from_block(memory, session_id=session_id)
                 )
-            )
+            elif isinstance(memory, CodeBlock):
+                self.memory_list.append(
+                    CodeMemoryFragment.from_block(memory, session_id=session_id)
+                )
+            else:
+                self.memory_list.append(
+                    MemoryFragment.from_block(memory, session_id=session_id)
+                )
 
     def find_similar(self, query: str, top_k: int = 5) -> list[BaseBlock]:
         if self.index is None or len(self.memory_list) == 0:
@@ -105,9 +100,9 @@ class MemoryStorage:
             normalized_query, min(top_k, len(self.memory_list))
         )[1]
 
-        results = []
+        results: list[BaseBlock] = []
         for idx in indices[0]:
-            results.append(self.memory_list[idx])
+            results.append(self.memory_list[idx].to_block())
 
         return results
 

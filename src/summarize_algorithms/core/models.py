@@ -28,6 +28,7 @@ class OpenAIModels(Enum):
 
 class LocalModels(Enum):
     GEMMA_2_9_B = "gemma2:9b"
+    QWEN_2_5_14_B = "qwen2.5:14b"
 
 
 @dataclass

@@ -1,8 +1,10 @@
 langchain-core>=0.3.72,<1.0.0
 langchain-openai==0.3.28
+langchain-ollama
 langgraph==0.5.3
 langchain>=0.3.27,<0.4.0
 tiktoken==0.9.0
+transformers
 datasets==4.0.0
 numpy>=1.26.2
 scikit-learn==1.5.2

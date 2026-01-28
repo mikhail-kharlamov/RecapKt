@@ -5,7 +5,7 @@ from typing import Any
 
 from dotenv import load_dotenv
 from langchain_community.callbacks import get_openai_callback
-from langchain_community.chat_models import ChatOllama
+from langchain_ollama.chat_models import ChatOllama
 from langchain_core.exceptions import OutputParserException
 from langchain_core.language_models import BaseChatModel
 from langchain_core.messages import (
@@ -37,7 +37,7 @@ from src.summarize_algorithms.core.models import (
 
 
 class DialogueBaseline(Dialogue):
-    def __init__(self, system_name: str, llm: BaseChatModel | None = None, is_local=False) -> None:
+    def __init__(self, system_name: str, llm: BaseChatModel | None = None, is_local=True) -> None:
         load_dotenv()
 
         self.system_name = system_name
@@ -54,7 +54,7 @@ class DialogueBaseline(Dialogue):
     def _initialize_model(self, llm: BaseChatModel | None = None, is_local: bool = False) -> None:
         if is_local:
             self.llm = ChatOllama(
-                model=LocalModels.GEMMA_2_9_B.value,
+                model=LocalModels.QWEN_2_5_14_B.value,
                 temperature=0.7,
                 keep_alive="1h"
             )

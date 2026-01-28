@@ -91,6 +91,9 @@ class Runner:
         for count_of_sessions in [1, 3, 5, 7, 9, 11, 13, 15]:
             subdirectory: Path = Path(str(count_of_sessions))
 
+            if count_of_sessions == 3:
+                print("ye")
+
             if name in ("full_baseline", "short_tools", "weights"):
                 self._logger.info("Start evaluating full baseline statistics")
                 statistics: StatisticsDto = Statistics.calculate(
@@ -146,19 +149,19 @@ class Runner:
 
     @staticmethod
     def __init_algorithm(name: AlgorithmName) -> Dialogue:
-        if name == "base_recsum":
+        if name.value == "base_recsum":
             return RecsumDialogueSystem(embed_code=False, embed_tool=False, system_name="BaseRecsum")
-        elif name == "base_memory_bank":
+        elif name.value == "base_memory_bank":
             return MemoryBankDialogueSystem(embed_code=False, embed_tool=False, system_name="BaseMemoryBank")
-        elif name == "rag_recsum":
+        elif name.value == "rag_recsum":
             return RecsumDialogueSystem(embed_code=True, embed_tool=True, system_name="RagRecsum")
-        elif name == "rag_memory_bank":
+        elif name.value == "rag_memory_bank":
             return MemoryBankDialogueSystem(embed_code=True, embed_tool=True, system_name="RagMemoryBank")
-        elif name == "full_baseline":
+        elif name.value == "full_baseline":
             return DialogueBaseline("FullBaseline")
-        elif name == "short_tools":
+        elif name.value == "short_tools":
             return DialogueWithShortTools("ShortTools")
-        elif name == "weights":
+        elif name.value == "weights":
             return DialogueWithWeights("Weights")
         else:
             return DialogueBaseline("LastBaseline")
@@ -325,8 +328,9 @@ class Runner:
 if __name__ == "__main__":
     configure_logs(loglevel=logging.INFO)
 
-    #runner = Runner()
+    runner = Runner()
     #runner.run(sys.argv[1])
+    runner.run("base_recsum")
 
     Runner.build_graph(
         [GeneralTrends],
