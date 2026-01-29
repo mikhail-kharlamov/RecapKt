@@ -33,7 +33,7 @@ from src.summarize_algorithms.core.models import (
     LocalModels,
     OpenAIModels,
     Session,
-    WorkflowNode,
+    WorkflowNode, MemoryDialogueState,
 )
 from src.summarize_algorithms.core.prompts import RESPONSE_GENERATION_PROMPT
 from src.summarize_algorithms.core.response_generator import ResponseGenerator
@@ -90,14 +90,9 @@ class BaseDialogueSystem(ABC, Dialogue):
 
         api_key: str | None = os.getenv("OPENAI_API_KEY")
         if api_key is not None:
-            #self.memory_llm = ChatOpenAI(
-            #    model=OpenAIModels.GPT_5_MINI.value,
-            #    api_key=SecretStr(api_key)
-            #)
-            self.memory_llm = ChatOllama(
-                model=LocalModels.QWEN_2_5_14_B.value,
-                temperature=0.7,
-                keep_alive="1h"
+            self.memory_llm = ChatOpenAI(
+                model=OpenAIModels.GPT_5_MINI.value,
+                api_key=SecretStr(api_key)
             )
         else:
             raise ValueError("OPENAI_API_KEY environment variable is not loaded")
@@ -105,7 +100,7 @@ class BaseDialogueSystem(ABC, Dialogue):
         if is_local:
             self.llm = ChatOllama(
                 model=LocalModels.QWEN_2_5_14_B.value,
-                temperature=0.7,
+                temperature=0,
                 keep_alive="1h"
             )
         else:

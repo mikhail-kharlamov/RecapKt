@@ -1,6 +1,7 @@
 import json
 import logging
 import os
+import sys
 
 from pathlib import Path
 
@@ -89,9 +90,6 @@ class Runner:
 
         for count_of_sessions in [1, 3, 5, 7, 9, 11, 13, 15]:
             subdirectory: Path = Path(str(count_of_sessions))
-
-            if count_of_sessions == 3:
-                print("ye")
 
             if name in ("full_baseline", "short_tools", "weights"):
                 self._logger.info("Start evaluating full baseline statistics")
@@ -328,8 +326,7 @@ if __name__ == "__main__":
     configure_logs(loglevel=logging.INFO)
 
     runner = Runner()
-    #runner.run(sys.argv[1])
-    runner.run("base_recsum")
+    runner.run(sys.argv[1])
 
     Runner.build_graph(
         [GeneralTrends],

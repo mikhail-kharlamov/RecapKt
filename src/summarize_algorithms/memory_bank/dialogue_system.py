@@ -1,5 +1,5 @@
 from src.summarize_algorithms.core.base_dialogue_system import BaseDialogueSystem
-from src.summarize_algorithms.core.memory_storage import MemoryStorage
+from src.summarize_algorithms.core.memory_storage.memory_storage import MemoryStorage
 from src.summarize_algorithms.core.models import MemoryBankDialogueState, Session
 from src.summarize_algorithms.memory_bank.prompts import SESSION_SUMMARY_PROMPT
 from src.summarize_algorithms.memory_bank.summarizer import SessionSummarizer

@@ -172,7 +172,7 @@ class Session:
 @dataclass_json
 @dataclass
 class DialogueState:
-    from src.summarize_algorithms.core.memory_storage import MemoryStorage
+    from src.summarize_algorithms.core.memory_storage.memory_storage import MemoryStorage
 
     dialogue_sessions: list[Session]
     prepared_messages: list[BaseMessage]
@@ -212,7 +212,7 @@ class RecsumDialogueState(MemoryDialogueState):
 @dataclass_json
 @dataclass
 class MemoryBankDialogueState(MemoryDialogueState):
-    from src.summarize_algorithms.core.memory_storage import MemoryStorage
+    from src.summarize_algorithms.core.memory_storage.memory_storage import MemoryStorage
 
     text_memory_storage: MemoryStorage = field(default_factory=MemoryStorage)
 

@@ -1,6 +1,6 @@
 
 from src.summarize_algorithms.core.base_dialogue_system import BaseDialogueSystem
-from src.summarize_algorithms.core.memory_storage import MemoryStorage
+from src.summarize_algorithms.core.memory_storage.memory_storage import MemoryStorage
 from src.summarize_algorithms.core.models import RecsumDialogueState, Session
 from src.summarize_algorithms.recsum.prompts import MEMORY_UPDATE_PROMPT_TEMPLATE
 from src.summarize_algorithms.recsum.summarizer import RecursiveSummarizer
