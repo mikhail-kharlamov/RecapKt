@@ -8,6 +8,12 @@ from src.benchmarking.tool_metrics.graphs.graph_builder import GraphBuilder
 
 
 class TrendsWithQuantiles(GraphBuilder):
+    """
+    Trend plot with uncertainty bands.
+
+    Plots mean metric value over sessions and shades the inter-quantile band (default: 25th–75th percentile).
+    """
+
     @staticmethod
     def build(statistics: StatisticsDto, path_to_save: str, title: str = "") -> None:
         sns.set_theme(style="whitegrid")

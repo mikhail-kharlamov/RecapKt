@@ -40,6 +40,16 @@ from src.summarize_algorithms.core.response_generator import ResponseGenerator
 
 
 class BaseDialogueSystem(ABC, Dialogue):
+    """
+    Shared LangGraph-based implementation for dialogue systems in this repository.
+
+    The pipeline is built as a graph with two main stages:
+    1) update memory (via a concrete `BaseSummarizer` implementation)
+    2) generate the final response (via `ResponseGenerator`, optionally with tools/structured output)
+
+    Subclasses plug in the summarizer and the initial `DialogueState`.
+    """
+
     def __init__(
         self,
         llm: BaseChatModel | None = None,
@@ -162,6 +172,15 @@ class BaseDialogueSystem(ABC, Dialogue):
             structure: dict[str, Any] | None = None,
             tools: list[dict[str, Any]] | None = None
     ) -> DialogueState:
+        """
+        Run the dialogue workflow and return the final `DialogueState`.
+
+        :param sessions: past user/assistant/tool interactions (last element is treated as the current session).
+        :param system_prompt: system prompt template used during response generation.
+        :param structure: optional JSON schema for structured model output.
+        :param tools: optional tools/functions specs for tool calling.
+        :return: DialogueState: state populated with updated memory and the generated response.
+        """
         graph = self._build_graph(structure, tools, system_prompt_template=system_prompt)
         initial_state = self._get_initial_state(sessions, sessions[-1], system_prompt)
 

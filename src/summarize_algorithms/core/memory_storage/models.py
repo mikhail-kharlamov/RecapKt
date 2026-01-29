@@ -6,6 +6,7 @@ from src.summarize_algorithms.core.models import BaseBlock, CodeBlock, ToolCallB
 
 @dataclass
 class MemoryFragment:
+    """Serializable representation of a remembered block used by `MemoryStorage`."""
     embed_content: str
     content: str
     role: str
@@ -13,6 +14,13 @@ class MemoryFragment:
 
     @classmethod
     def from_block(cls, block: BaseBlock, session_id: int) -> "MemoryFragment":
+        """
+        Create a fragment from a session block.
+
+        :param block: source message block.
+        :param session_id: session index.
+        :return: MemoryFragment: created fragment.
+        """
         return cls(
             embed_content=block.content,
             content=block.content,
@@ -21,6 +29,11 @@ class MemoryFragment:
         )
 
     def to_block(self) -> BaseBlock:
+        """
+        Convert the fragment back to a `BaseBlock` (used when retrieving from the vector store).
+
+        :return: BaseBlock: restored block.
+        """
         return BaseBlock(
             role="assistant",
             content=self.content,
@@ -29,6 +42,7 @@ class MemoryFragment:
 
 @dataclass
 class ToolMemoryFragment(MemoryFragment):
+    """Specialized fragment for tool calls/responses (keeps tool metadata)."""
     id: str
     name: str
     arguments: str
@@ -62,6 +76,7 @@ class ToolMemoryFragment(MemoryFragment):
 
 @dataclass
 class CodeMemoryFragment(MemoryFragment):
+    """Specialized fragment for code blocks (embeds `code`, not `content`)."""
     code: str
 
     @override

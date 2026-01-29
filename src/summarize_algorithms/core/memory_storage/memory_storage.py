@@ -21,6 +21,13 @@ from src.summarize_algorithms.core.models import BaseBlock, CodeBlock, ToolCallB
 
 
 class MemoryStorage:
+    """
+    Vector store for dialogue memory fragments (text/code/tool).
+
+    Stores embeddings in a FAISS inner-product index and keeps the original content in a parallel list.
+    Used by dialogue systems to retrieve top-k relevant past fragments for a given query.
+    """
+
     def __init__(
         self,
         embeddings: Embeddings | None = None,
@@ -56,6 +63,13 @@ class MemoryStorage:
         return vectors / norms
 
     def add_memory(self, memories: Iterable[BaseBlock], session_id: int) -> None:
+        """
+        Embed and index new memory blocks for a given session.
+
+        :param memories: blocks to store (text/code/tool). Empty iterables are ignored.
+        :param session_id: index of the session these blocks came from (used for time-decay weighting).
+        :return: None
+        """
         if not memories:
             return
 
@@ -92,6 +106,13 @@ class MemoryStorage:
                 )
 
     def find_similar(self, query: str, top_k: int = 5) -> list[BaseBlock]:
+        """
+        Return top-k stored blocks most similar to the query (cosine/IP on normalized vectors).
+
+        :param query: query string to search for.
+        :param top_k: maximum number of results to return.
+        :return: list[BaseBlock]: retrieved blocks ordered by similarity.
+        """
         if self.index is None or len(self.memory_list) == 0:
             return []
 
@@ -114,6 +135,12 @@ class MemoryStorage:
         return len(self.memory_list)
 
     def get_session_memory(self, session_id: int) -> list[str]:
+        """
+        Get raw stored contents for a specific session id.
+
+        :param session_id: session index.
+        :return: list[str]: stored fragment contents.
+        """
         if session_id < 0 or session_id >= self.max_session_id:
             raise ValueError(
                 f"Session ID must be between 0 and {self.max_session_id - 1}."
@@ -126,6 +153,11 @@ class MemoryStorage:
         ]
 
     def to_dict(self) -> dict[str, Any]:
+        """
+        Serialize the storage metadata (memory list + FAISS index info) for logging/debugging.
+
+        :return: dict[str, Any]: JSON-serializable snapshot of the storage.
+        """
         return {
             "memory_list": [
                 {

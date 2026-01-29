@@ -50,6 +50,16 @@ JSON_FILE_TEMPLATE: str = "*.json"
 
 
 class Runner:
+    """
+    Orchestrates tool-metrics benchmarking runs.
+
+    Responsibilities:
+    - loads past sessions + a "gold" session from `BASE_DATA_PATH`
+    - runs a selected dialogue system/baseline
+    - evaluates outputs via `BaseEvaluator` implementations (e.g. `F1ToolEvaluator`)
+    - optionally builds graphs from saved logs
+    """
+
     def __init__(self, templates_dir: str = "prompts") -> None:
         self._logger = logging.getLogger()
         self._env = Environment(
@@ -62,6 +72,15 @@ class Runner:
         self._memory_logger = MemoryLogger()
 
     def run(self, name: str) -> None:
+        """
+        Run a full benchmark sweep for a given algorithm name.
+
+        Loads input sessions from `BASE_DATA_PATH`, selects the algorithm/baseline, evaluates it with tool metrics,
+        and prints aggregated statistics.
+
+        :param name: algorithm name (see `AlgorithmName`).
+        :return: None
+        """
         algorithm: Dialogue = Runner.__init_algorithm(AlgorithmName(name))
 
         self._logger.info("Start parsing session")

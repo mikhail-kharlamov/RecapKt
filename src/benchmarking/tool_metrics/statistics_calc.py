@@ -23,6 +23,13 @@ from src.summarize_algorithms.core.models import BaseBlock, Session
 
 
 class Statistics:
+    """
+    Helpers for running repeated evaluation launches and aggregating metric statistics.
+
+    `calculate()` runs `Calculator.evaluate()` multiple times (optionally shuffling sessions) and computes basic
+    descriptive stats (mean/variance) per (algorithm, metric, number_of_sessions).
+    """
+
     RUN_ID = "exp_29_12_2025_1_31_am"
 
     @staticmethod
@@ -40,6 +47,23 @@ class Statistics:
             tools: list[dict[str, Any]] | None = None,
             shuffle: bool = False
     ) -> StatisticsDto:
+        """
+        Run multiple evaluation launches and aggregate results.
+
+        :param count_of_launches: number of repeated runs (useful when randomness is involved).
+        :param algorithms: dialogue systems/baselines to evaluate.
+        :param evaluator_functions: metric evaluators applied to each run.
+        :param sessions: past interactions (may be shuffled if `shuffle=True`).
+        :param count_of_sessions: how many sessions to include per run.
+        :param gold_session: the final (current) session containing the evaluated query.
+        :param prompt: system prompt / query template.
+        :param reference: reference blocks used for metric computation.
+        :param logger: logger used to persist run artifacts.
+        :param subdirectory: path segment for grouping outputs by session count.
+        :param tools: optional tool specs.
+        :param shuffle: whether to shuffle `sessions` before slicing.
+        :return: StatisticsDto: aggregated statistics DTO.
+        """
         system_logger = logging.getLogger()
 
         values_by_alg_metric: dict[tuple[str, MetricType, int], list[float]] = {}

@@ -7,8 +7,21 @@ from src.summarize_algorithms.core.models import BaseBlock, Session, ToolCallBlo
 
 
 class Loader:
+    """
+    Utilities for loading tool schemas and dialogue sessions from exported JSON formats used in benchmarking.
+
+    The benchmarking code supports multiple dataset formats ("data_type_1" and "data_type_2"). This class converts
+    them into the project’s internal `Session`/`BaseBlock` representation.
+    """
+
     @staticmethod
     def load_func_tools(path: Path | str) -> list[dict[str, Any]]:
+        """
+        Load tool/function specifications from a JSON file.
+
+        :param path: path to JSON file.
+        :return: list[dict[str, Any]]: tool specs.
+        """
         with open(path, encoding="utf-8") as f:
             data: list[dict[str, Any]] = json.load(f)
 
@@ -16,6 +29,12 @@ class Loader:
 
     @staticmethod
     def load_session_data_type_2(path: Path | str) -> Session:
+        """
+        Load a dialogue session from the "data_type_2" JSON export format.
+
+        :param path: path to session JSON.
+        :return: Session: parsed session in internal format.
+        """
         result: list[BaseBlock] = []
         with open(path, encoding="utf-8") as f:
             data = json.load(f)
@@ -67,6 +86,12 @@ class Loader:
 
     @staticmethod
     def load_session_data_type_1(path: Path | str) -> Session:
+        """
+        Load a dialogue session from the "data_type_1" JSON export format.
+
+        :param path: path to session JSON.
+        :return: Session: parsed session in internal format.
+        """
         with open(path, encoding="utf-8") as f:
             raw = json.load(f)
 

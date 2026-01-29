@@ -8,6 +8,13 @@ from src.summarize_algorithms.memory_bank.summarizer import SessionMemory
 
 
 class RecursiveSummarizer(BaseSummarizer):
+    """
+    RecSum memory updater.
+
+    Given the previous memory + the current dialogue context, produces a list of `BaseBlock` messages representing
+    the updated memory.
+    """
+
     def _build_chain(self) -> RunnableSerializable[dict[str, Any], SessionMemory]:
         return cast(
             RunnableSerializable[dict, SessionMemory],
@@ -15,6 +22,13 @@ class RecursiveSummarizer(BaseSummarizer):
         )
 
     def summarize(self, previous_memory: str, dialogue_context: str) -> list[BaseBlock]:
+        """
+        Update recursive memory given previous memory and the latest dialogue context.
+
+        :param previous_memory: previous memory string.
+        :param dialogue_context: current dialogue context string.
+        :return: list[BaseBlock]: updated memory blocks.
+        """
         try:
             response = self.chain.invoke(
                 {

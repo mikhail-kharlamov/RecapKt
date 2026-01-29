@@ -8,9 +8,24 @@ from src.benchmarking.models.dtos import AlgorithmStatistics, StatisticsDto
 
 
 class GraphBuilder(ABC):
+    """
+    Base class for graph/plot builders used in tool-metrics benchmarking.
+
+    Implementations take a `StatisticsDto` (a list of runs) and render a figure to disk. Helpers in this base class
+    convert runs into a Pandas `DataFrame` and save the active Matplotlib figure.
+    """
+
     @staticmethod
     @abstractmethod
     def build(statistics: StatisticsDto, path_to_save: str, title: str = "") -> None:
+        """
+        Render a graph for the provided statistics and save it to `path_to_save`.
+
+        :param statistics: aggregated run statistics.
+        :param path_to_save: output image path.
+        :param title: optional title suffix.
+        :return: None
+        """
         ...
 
     @staticmethod

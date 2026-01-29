@@ -7,6 +7,12 @@ from src.benchmarking.tool_metrics.graphs.graph_builder import GraphBuilder
 
 
 class GeneralTrends(GraphBuilder):
+    """
+    Line-plot of metric trend as the number of sessions grows.
+
+    For each algorithm, computes the mean score per `sessions` bucket and draws a curve.
+    """
+
     @staticmethod
     def build(
             statistics: StatisticsDto,

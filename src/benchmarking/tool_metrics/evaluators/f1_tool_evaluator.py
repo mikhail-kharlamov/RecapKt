@@ -14,6 +14,17 @@ from src.summarize_algorithms.core.models import (
 
 
 class F1ToolEvaluator(BaseEvaluator):
+    """
+    Computes F1 between tools predicted by the model and tools used in a reference trace.
+
+    The model is expected to return a structured response with a `plan_steps` list where tool calls are represented
+    as entries with `kind == "tool_call"`.
+
+    Modes:
+    - default: compares only tool names
+    - "strict": compares tool names + exact JSON arguments
+    """
+
     def evaluate(
             self,
             sessions: list[Session],
@@ -21,6 +32,15 @@ class F1ToolEvaluator(BaseEvaluator):
             state: DialogueState,
             reference: list[BaseBlock] | None = None,
     ) -> MetricState:
+        """
+        Compute the F1 score for tool selection against a reference trace.
+
+        :param sessions: previous sessions (unused here, but part of the evaluator interface).
+        :param query: the evaluated user query.
+        :param state: algorithm output state containing the model response.
+        :param reference: reference blocks containing expected tool calls.
+        :return: MetricState: metric name and computed value.
+        """
         if reference is None:
             raise ValueError("Reference is required for F1 Tool evaluation.")
 

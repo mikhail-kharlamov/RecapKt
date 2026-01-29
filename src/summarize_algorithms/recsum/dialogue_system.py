@@ -7,6 +7,13 @@ from src.summarize_algorithms.recsum.summarizer import RecursiveSummarizer
 
 
 class RecsumDialogueSystem(BaseDialogueSystem):
+    """
+    Implementation of the RecSum-style dialogue system.
+
+    Uses `RecursiveSummarizer` to iteratively update a text memory (and optionally vector-retrieved code/tool memory)
+    and then generates a final response via `BaseDialogueSystem`’s graph.
+    """
+
     def _build_summarizer(self) -> RecursiveSummarizer:
         return RecursiveSummarizer(self.memory_llm, MEMORY_UPDATE_PROMPT_TEMPLATE)
 

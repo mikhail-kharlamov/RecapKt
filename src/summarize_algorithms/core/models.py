@@ -17,6 +17,7 @@ from langchain_core.messages import (
 
 
 class OpenAIModels(Enum):
+    """Names of OpenAI chat models used in this repository."""
     GPT_3_5_TURBO = "gpt-3.5-turbo"
     GPT_4_1_MINI = "gpt-4.1-mini"
     GPT_4_O = "gpt-4o"
@@ -27,12 +28,14 @@ class OpenAIModels(Enum):
 
 
 class LocalModels(Enum):
+    """Names of local (Ollama) models used in this repository."""
     GEMMA_2_9_B = "gemma2:9b"
     QWEN_2_5_14_B = "qwen2.5:14b"
 
 
 @dataclass
 class BaseBlock:
+    """A single message block in a `Session` (role + textual content)."""
     role: str
     content: str
 
@@ -42,11 +45,13 @@ class BaseBlock:
 
 @dataclass
 class CodeBlock(BaseBlock):
+    """A message block that contains code (stored in `code`)."""
     code: str
 
 
 @dataclass
 class ToolCallBlock(BaseBlock):
+    """Represents a tool/function call and its response within a session."""
     id: str
     name: str
     arguments: str
@@ -54,6 +59,12 @@ class ToolCallBlock(BaseBlock):
 
 
 class Session:
+    """
+    Ordered list of dialogue blocks (user/assistant/code/tool) with helpers for LangChain conversion.
+
+    This is the primary interchange format between dataset loaders, dialogue systems, and benchmarking.
+    """
+
     def __init__(self, messages: list[BaseBlock]) -> None:
         self.messages = messages
 
@@ -172,6 +183,11 @@ class Session:
 @dataclass_json
 @dataclass
 class DialogueState:
+    """
+    Mutable state passed through the LangGraph workflow.
+
+    Contains the dialogue history (`dialogue_sessions`), memory stores, and the final generated response.
+    """
     from src.summarize_algorithms.core.memory_storage.memory_storage import MemoryStorage
 
     dialogue_sessions: list[Session]
@@ -196,12 +212,14 @@ class DialogueState:
 @dataclass_json
 @dataclass
 class MemoryDialogueState(DialogueState):
+    """`DialogueState` that also tracks the `last_session` explicitly (used by memory-based systems)."""
     last_session: Session = field(default_factory=lambda: Session([]))
 
 
 @dataclass_json
 @dataclass
 class RecsumDialogueState(MemoryDialogueState):
+    """Dialogue state for `RecsumDialogueSystem` (keeps iterative `text_memory`)."""
     text_memory: list[list[str]] = field(default_factory=list)
 
     @property
@@ -212,22 +230,26 @@ class RecsumDialogueState(MemoryDialogueState):
 @dataclass_json
 @dataclass
 class MemoryBankDialogueState(MemoryDialogueState):
+    """Dialogue state for `MemoryBankDialogueSystem` (stores session summaries in `text_memory_storage`)."""
     from src.summarize_algorithms.core.memory_storage.memory_storage import MemoryStorage
 
     text_memory_storage: MemoryStorage = field(default_factory=MemoryStorage)
 
 
 class WorkflowNode(Enum):
+    """Named nodes in the LangGraph dialogue workflow."""
     UPDATE_MEMORY = "update_memory"
     GENERATE_RESPONSE = "generate_response"
 
 
 class UpdateState(Enum):
+    """Routing values used by `should_continue_memory_update` to control the graph loop."""
     CONTINUE_UPDATE = "continue_update"
     FINISH_UPDATE = "finish_update"
 
 @dataclass_json
 @dataclass
 class ResponseContext:
+    """Output of response generation (raw response + the prepared message history sent to the model)."""
     response: Any
     prepared_history: list[BaseMessage]

@@ -7,6 +7,12 @@ from src.benchmarking.tool_metrics.graphs.graph_builder import GraphBuilder
 
 
 class BoxPlot(GraphBuilder):
+    """
+    Box-plot visualization of metric distributions per algorithm.
+
+    Useful for comparing variance and outliers across different dialogue systems/baselines.
+    """
+
     @staticmethod
     def build(
             statistics: StatisticsDto,

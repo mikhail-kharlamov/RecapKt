@@ -15,6 +15,18 @@ from src.summarize_algorithms.core.models import ResponseContext, Session
 
 
 class ResponseGenerator:
+    """
+    Generates the final assistant response given:
+    - the last dialogue session
+    - retrieved memory (code/tool/text)
+    - the current user query
+
+    Depending on configuration, it can:
+    - return plain text (`StrOutputParser`)
+    - call tools (`bind_tools`)
+    - return structured JSON (`with_structured_output`)
+    """
+
     def __init__(self,
                  llm: BaseChatModel,
                  prompt_template: ChatPromptTemplate,
@@ -94,6 +106,21 @@ class ResponseGenerator:
             text_memory: Session,
             query: str
     ) -> ResponseContext:
+        """
+        Generate a response using the configured LLM chain.
+
+        The final prompt is built from:
+        - a "Retrieval Information" section (code/tool/text memories)
+        - the trimmed conversation history from `last_session`
+        - the current `query` appended as the last user message
+
+        :param last_session: the current conversation session (history used for response generation).
+        :param code_memory: retrieved code memory blocks.
+        :param tool_memory: retrieved tool memory blocks.
+        :param text_memory: retrieved text memory blocks.
+        :param query: the user query to answer.
+        :return: ResponseContext: raw model output and the prepared history sent to the model.
+        """
         try:
             memory_msg: list[BaseMessage] = ResponseGenerator._prepare_retrieval_information(
                 code_memory,
