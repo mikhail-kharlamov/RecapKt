@@ -1,0 +1,19 @@
+{% if recap is not none and recap|trim != "" %}
+### RECAP:
+{{ recap }}
+{% endif %}
+
+{% if memory_bank is not none and memory_bank|trim != "" %}
+### MEMORY BANK:
+{{ memory_bank }}
+{% endif %}
+
+{% if code_knowledge is not none and code_knowledge|trim != "" %}
+### CODE KNOWLEDGE:
+{{ code_knowledge }}
+{% endif %}
+
+{% if tool_memory is not none and tool_memory|trim != "" %}
+### TOOL MEMORY:
+{{ tool_memory }}
+{% endif %}

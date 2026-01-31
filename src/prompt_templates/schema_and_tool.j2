@@ -1,0 +1,21 @@
+---
+
+**Tools Catalog**
+You may only plan calls to the following tools. Do not invent tools.
+
+{{ tools_catalog_json }}
+
+**Output JSON Schema**
+Return only JSON that conforms to this schema.
+
+{{ schema_json }}
+
+**MemoryArtifacts**
+{{ memory_artifacts_note }}
+
+{% if examples is not none and examples|trim != "" %}
+**Examples**
+{{ examples }}
+{% endif %}
+
+---
