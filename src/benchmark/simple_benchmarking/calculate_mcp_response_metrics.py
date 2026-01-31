@@ -4,8 +4,8 @@ from datetime import datetime
 from typing import Any
 
 from src.algorithms.simple_algorithms.dialogue_baseline import DialogueBaseline
-from src.benchmark.llm_evaluation import LLMResponseEvaluation
-from src.benchmark.metric_calculator import (
+from src.benchmark.simple_benchmarking.llm_evaluation import LLMResponseEvaluation
+from src.benchmark.simple_benchmarking.metric_calculator import (
     CalculateMCPMetrics,
     MCPResponseResults,
     MetricStats,
@@ -13,7 +13,7 @@ from src.benchmark.metric_calculator import (
     RawSemanticData,
     SystemResults,
 )
-from src.benchmark.semantic_similarity import SemanticSimilarity
+from src.benchmark.simple_benchmarking.semantic_similarity import SemanticSimilarity
 
 
 class CalculateMCPResponseMetrics(CalculateMCPMetrics):

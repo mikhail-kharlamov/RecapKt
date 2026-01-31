@@ -7,7 +7,7 @@ from pathlib import Path
 
 from src.algorithms.simple_algorithms.dialogue_baseline import DialogueBaseline
 from src.benchmark.simple_benchmarking.agent_chat.deserialize_agent_chat import ChatDataset
-from src.benchmark.llm_evaluation import (
+from src.benchmark.simple_benchmarking.llm_evaluation import (
     ComparisonResult,
     LLMChatAgentEvaluation,
     SingleChatAgentResult,

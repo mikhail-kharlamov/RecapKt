@@ -11,7 +11,7 @@ from langchain_core.runnables import RunnableSerializable
 from langchain_openai import ChatOpenAI
 from pydantic import BaseModel, Field, SecretStr
 
-from src.benchmark.prompts import (
+from src.benchmark.simple_benchmarking.prompts import (
     PAIRWISE_EVALUATION_AGENT_RESPONSE,
     PAIRWISE_EVALUATION_MEMORY_PROMPT,
     PAIRWISE_EVALUATION_RESPONSE_PROMPT,

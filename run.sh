@@ -1,5 +1,5 @@
 #!/bin/bash
 
 source .venv/bin/activate
-cd src/benchmarking/tool_metrics
+cd src/benchmark/tool_plan_benchmarking
 python run.py $1

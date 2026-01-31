@@ -62,7 +62,7 @@ class Session:
     """
     Ordered list of dialogue blocks (user/assistant/code/tool) with helpers for LangChain conversion.
 
-    This is the primary interchange format between dataset loaders, dialogue systems, and benchmarking.
+    This is the primary interchange format between dataset loaders, dialogue systems, and benchmark.
     """
 
     def __init__(self, messages: list[BaseBlock]) -> None:
@@ -188,7 +188,7 @@ class DialogueState:
 
     Contains the dialogue history (`dialogue_sessions`), memory stores, and the final generated response.
     """
-    from src.summarize_algorithms.core.memory_storage.memory_storage import MemoryStorage
+    from src.algorithms.summarize_algorithms.core.memory_storage.memory_storage import MemoryStorage
 
     dialogue_sessions: list[Session]
     prepared_messages: list[BaseMessage]
@@ -231,7 +231,7 @@ class RecsumDialogueState(MemoryDialogueState):
 @dataclass
 class MemoryBankDialogueState(MemoryDialogueState):
     """Dialogue state for `MemoryBankDialogueSystem` (stores session summaries in `text_memory_storage`)."""
-    from src.summarize_algorithms.core.memory_storage.memory_storage import MemoryStorage
+    from src.algorithms.summarize_algorithms.core.memory_storage.memory_storage import MemoryStorage
 
     text_memory_storage: MemoryStorage = field(default_factory=MemoryStorage)
 

@@ -3,7 +3,9 @@ import json
 from dataclasses import dataclass
 from typing import Any
 
-from jinja2 import Environment, PackageLoader, select_autoescape
+from pathlib import Path
+
+from jinja2 import Environment, FileSystemLoader, select_autoescape
 
 
 @dataclass(frozen=True)
@@ -13,24 +15,16 @@ class MemorySections:
     recap: str | None = None
     memory_bank: str | None = None
     code_knowledge: str | None = None
-
-    def to_blocks(self) -> list[str]:
-        blocks: list[str] = []
-        if self.recap is not None and self.recap.strip() != "":
-            blocks.append(f"### RECAP:\n{self.recap.strip()}")
-        if self.memory_bank is not None and self.memory_bank.strip() != "":
-            blocks.append(f"### MEMORY BANK:\n{self.memory_bank.strip()}")
-        if self.code_knowledge is not None and self.code_knowledge.strip() != "":
-            blocks.append(f"### CODE KNOWLEDGE:\n{self.code_knowledge.strip()}")
-        return blocks
+    tool_memory: str | None = None
 
 
 class SystemPromptBuilder:
     """Builds a single unified system prompt using repository Jinja2 templates."""
 
     def __init__(self) -> None:
+        templates_dir = Path(__file__).resolve().parents[1] / "prompt_templates"
         self._env = Environment(
-            loader=PackageLoader("src.prompt_templates"),
+            loader=FileSystemLoader(str(templates_dir)),
             autoescape=select_autoescape(disabled_extensions=("j2",)),
             trim_blocks=True,
             lstrip_blocks=True,
@@ -39,10 +33,9 @@ class SystemPromptBuilder:
     def build(
             self,
             *,
-            tools_catalog: list[dict[str, Any]] | None,
             schema: dict[str, Any] | None,
             memory: MemorySections,
-            memory_artifacts_note: str,
+            memory_mode: str,
             examples: str = "",
     ) -> str:
         """
@@ -54,28 +47,34 @@ class SystemPromptBuilder:
         3) schema_and_tool.j2
         4) bridge_to_conversation.j2
 
-        :param tools_catalog: tools available for planning.
         :param schema: JSON schema for model output (structured output).
         :param memory: optional memory sections.
-        :param memory_artifacts_note: short description of what MemoryArtifacts means for this agent.
+        :param memory_mode: "baseline" or "memory" (affects MemoryArtifacts description).
         :param examples: optional examples block.
         :return: str: rendered system prompt.
         """
-        intro = self._env.get_template("introduction.j2").render()
+        intro = self._env.get_template("introduction.j2").render().strip()
 
-        memory_blocks = memory.to_blocks()
-        memory_text = ("\n\n" + "\n\n".join(memory_blocks)) if memory_blocks else ""
+        memory_text = self._env.get_template("memory_injection.j2").render(
+            recap=memory.recap,
+            memory_bank=memory.memory_bank,
+            code_knowledge=memory.code_knowledge,
+            tool_memory=memory.tool_memory,
+        ).strip()
 
-        tools_catalog_json = json.dumps(tools_catalog or [], ensure_ascii=False, indent=4)
         schema_json = json.dumps(schema or {}, ensure_ascii=False, indent=4)
 
         schema_and_tool = self._env.get_template("schema_and_tool.j2").render(
-            tools_catalog_json=tools_catalog_json,
             schema_json=schema_json,
-            memory_artifacts_note=memory_artifacts_note,
+            memory_mode=memory_mode,
             examples=examples,
-        )
+        ).strip()
 
-        bridge = self._env.get_template("bridge_to_conversation.j2").render()
+        bridge = self._env.get_template("bridge_to_conversation.j2").render().strip()
 
-        return "\n".join([intro.rstrip(), memory_text.strip(), schema_and_tool.strip(), bridge.strip()]).strip()
+        parts = [intro]
+        if memory_text != "":
+            parts.append(memory_text)
+        parts.extend([schema_and_tool, bridge])
+
+        return "\n\n".join(parts).strip()

@@ -3,7 +3,7 @@ from unittest.mock import MagicMock
 
 import pytest
 
-from src.summarize_algorithms.recsum.summarizer import RecursiveSummarizer
+from src.algorithms.summarize_algorithms.recsum import RecursiveSummarizer
 
 
 @dataclass

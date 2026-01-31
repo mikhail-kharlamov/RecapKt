@@ -12,12 +12,12 @@ from langchain_core.embeddings import Embeddings
 from langchain_openai import OpenAIEmbeddings
 from pydantic import SecretStr
 
-from src.summarize_algorithms.core.memory_storage.models import (
+from src.algorithms.summarize_algorithms.core.memory_storage.models import (
     CodeMemoryFragment,
     MemoryFragment,
     ToolMemoryFragment,
 )
-from src.summarize_algorithms.core.models import BaseBlock, CodeBlock, ToolCallBlock
+from src.algorithms.summarize_algorithms.core.models import BaseBlock, CodeBlock, ToolCallBlock
 
 
 class MemoryStorage:

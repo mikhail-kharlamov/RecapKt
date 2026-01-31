@@ -1,5 +1,5 @@
-from src.summarize_algorithms.core.base_summarizer import BaseSummarizer
-from src.summarize_algorithms.core.models import (
+from src.algorithms.summarize_algorithms.core.base_summarizer import BaseSummarizer
+from src.algorithms.summarize_algorithms.core.models import (
     BaseBlock,
     DialogueState,
     MemoryBankDialogueState,
@@ -9,7 +9,7 @@ from src.summarize_algorithms.core.models import (
     Session,
     UpdateState,
 )
-from src.summarize_algorithms.core.response_generator import ResponseGenerator
+from src.algorithms.summarize_algorithms.core.response_generator import ResponseGenerator
 from src.utils.system_prompt_builder import MemorySections
 
 

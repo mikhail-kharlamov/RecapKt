@@ -6,8 +6,9 @@ from langchain_core.language_models import BaseChatModel
 from langchain_core.messages import HumanMessage, SystemMessage
 from langchain_core.prompts import ChatPromptTemplate
 
-from src.summarize_algorithms.core.models import BaseBlock, ResponseContext, Session
-from src.summarize_algorithms.core.response_generator import ResponseGenerator
+from src.algorithms.summarize_algorithms.core.models import BaseBlock, ResponseContext, Session
+from src.algorithms.summarize_algorithms.core.response_generator import ResponseGenerator
+from src.utils.system_prompt_builder import MemorySections
 
 
 @pytest.fixture
@@ -50,10 +51,9 @@ def test_generate_response_success(response_generator, empty_session):
 
     result = response_generator.generate_response(
         last_session=last_session,
-        code_memory=code_mem,
-        tool_memory=tool_mem,
-        text_memory=text_mem,
-        query="User question",
+        user_query="User question",
+        memory=MemorySections(recap="Some memory"),
+        memory_mode="memory",
     )
 
     assert isinstance(result, ResponseContext)
@@ -67,7 +67,7 @@ def test_generate_response_success(response_generator, empty_session):
     history = call_args["history"]
 
     assert isinstance(history[0], SystemMessage)
-    assert "Retrieval Information" in str(history[0].content)
+    assert "The System Instruction ends here" in str(history[0].content)
 
     assert isinstance(history[-1], HumanMessage)
     assert history[-1].content == "User question"
@@ -79,13 +79,12 @@ def test_generate_response_exception(response_generator, empty_session):
     response_generator._chain = mock_chain
 
     with pytest.raises(ConnectionError) as exc_info:
-        response_generator.generate_response(
-            last_session=empty_session,
-            code_memory=empty_session,
-            tool_memory=empty_session,
-            text_memory=empty_session,
-            query="q"
-        )
+            response_generator.generate_response(
+                last_session=empty_session,
+                user_query="q",
+                memory=MemorySections(),
+                memory_mode="baseline",
+            )
 
     assert "API request failed: Network error" in str(exc_info.value)
     assert isinstance(exc_info.value.__cause__, Exception)
@@ -101,10 +100,9 @@ def test_history_structure(response_generator):
 
     result = response_generator.generate_response(
         last_session=last_ses,
-        code_memory=Session([]),
-        tool_memory=Session([]),
-        text_memory=text_mem,
-        query="New query"
+        user_query="New query",
+        memory=MemorySections(recap="Memory info"),
+        memory_mode="memory",
     )
 
     history = result.prepared_history

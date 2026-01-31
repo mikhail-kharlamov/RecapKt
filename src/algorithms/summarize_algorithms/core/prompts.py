@@ -2,7 +2,7 @@ from langchain_core.prompts import PromptTemplate
 
 RESPONSE_GENERATION_PROMPT = PromptTemplate.from_template(
     """
-You are an advanced AI agent specializing in working with code and technical tasks,
+You are an advanced AI simple_algorithms specializing in working with code and technical tasks,
  but also capable of engaging in friendly, natural conversation.
  Your goal is to generate useful, accurate, and personalized responses using three types of input memory:
 

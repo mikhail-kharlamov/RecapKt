@@ -1,10 +1,10 @@
-from src.summarize_algorithms.core.models import (
+from src.algorithms.summarize_algorithms.core.models import (
     BaseBlock,
     CodeBlock,
     Session,
     ToolCallBlock,
 )
-from src.summarize_algorithms.memory_bank.dialogue_system import (
+from src.algorithms.summarize_algorithms.memory_bank.dialogue_system import (
     MemoryBankDialogueSystem,
 )
 

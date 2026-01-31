@@ -7,8 +7,8 @@ import pytest
 from src.benchmarking.models.dtos import BaseRecord, MetricState
 from src.benchmarking.models.enums import MetricType
 from src.benchmarking.tool_metrics.calculator import Calculator
-from src.summarize_algorithms.core.dialogue import Dialogue
-from src.summarize_algorithms.core.models import (
+from src.algorithms.summarize_algorithms import Dialogue
+from src.algorithms.summarize_algorithms.core.models import (
     BaseBlock,
     DialogueState,
     Session,

@@ -40,7 +40,7 @@ This repo targets **Python >= 3.12** (see `pyproject.toml`). CI uses **uv**.
   ```
 - Tool-metrics benchmarking helper:
   ```bash
-  ./run.sh <arg>   # runs src/benchmarking/tool_metrics/run.py
+  ./run.sh <arg>   # runs src/benchmark/tool_plan_benchmarking/run.py
   ```
 
 ## Code style and naming

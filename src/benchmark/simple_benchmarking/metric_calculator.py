@@ -10,8 +10,8 @@ import numpy as np
 
 from pydantic import BaseModel
 
-from src.benchmark.deserialize_mcp_data import MCPDataset
-from src.benchmark.llm_evaluation import ComparisonResult
+from src.benchmark.simple_benchmarking.deserialize_mcp_data import MCPDataset
+from src.benchmark.simple_benchmarking.llm_evaluation import ComparisonResult
 from src.algorithms.summarize_algorithms.recsum.dialogue_system import RecsumDialogueSystem
 
 

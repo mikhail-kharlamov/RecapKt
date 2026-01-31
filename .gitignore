@@ -10,5 +10,5 @@ build/
 .venv/
 uv.lock
 .env
-src/benchmarking/agent_chat/logs
-src/benchmarking/tool_metrics/logs
+src/benchmark/simple_benchmarking/agent_chat/logs
+src/benchmark/tool_plan_benchmarking/logs

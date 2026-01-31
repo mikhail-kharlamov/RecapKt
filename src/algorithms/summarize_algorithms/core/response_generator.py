@@ -11,7 +11,7 @@ from langchain_core.output_parsers import StrOutputParser
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_core.runnables import Runnable
 
-from src.summarize_algorithms.core.models import ResponseContext, Session
+from src.algorithms.summarize_algorithms.core.models import ResponseContext, Session
 from src.utils.system_prompt_builder import MemorySections, SystemPromptBuilder
 
 
@@ -121,7 +121,6 @@ class ResponseGenerator:
         :return: SystemMessage: unified system instruction.
         """
         system_prompt_text = self._prompt_builder.build(
-            tools_catalog=self._tools,
             schema=self._structure,
             memory=memory,
             memory_mode=memory_mode,

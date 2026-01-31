@@ -7,7 +7,7 @@ import pytest
 from src.benchmarking.memory_logger import MemoryLogger
 from src.benchmarking.models.dtos import MemoryRecord, MetricState
 from src.benchmarking.models.enums import MetricType
-from src.summarize_algorithms.core.models import (
+from src.algorithms.summarize_algorithms.core.models import (
     BaseBlock,
     DialogueState,
     Session,

@@ -26,9 +26,9 @@ from tenacity import (
     wait_exponential,
 )
 
-from src.benchmarking.baseline_logger import BaselineLogger
+from src.benchmark.logger.baseline_logger import BaselineLogger
 from src.utils.system_prompt_builder import MemorySections, SystemPromptBuilder
-from src.algorithms.summarize_algorithms import Dialogue
+from src.algorithms.dialogue import Dialogue
 from src.algorithms.summarize_algorithms.core.models import (
     DialogueState,
     LocalModels,

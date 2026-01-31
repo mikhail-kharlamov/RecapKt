@@ -4,7 +4,7 @@ from typing import Any
 
 from dataclasses_json import DataClassJsonMixin, dataclass_json
 
-from src.benchmarking.models.enums import MetricType
+from src.benchmark.models.enums import MetricType
 from src.algorithms.summarize_algorithms.core.models import BaseBlock, OpenAIModels
 
 

@@ -3,8 +3,8 @@ from typing import Any, cast
 from langchain_core.runnables import RunnableSerializable
 from pydantic import BaseModel, Field
 
-from src.summarize_algorithms.core.base_summarizer import BaseSummarizer
-from src.summarize_algorithms.core.models import BaseBlock
+from src.algorithms.summarize_algorithms.core.base_summarizer import BaseSummarizer
+from src.algorithms.summarize_algorithms.core.models import BaseBlock
 
 
 class SessionMemory(BaseModel):

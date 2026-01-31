@@ -20,23 +20,22 @@ from langgraph.graph import StateGraph
 from langgraph.graph.state import CompiledStateGraph
 from pydantic import SecretStr
 
-from src.benchmarking.memory_logger import MemoryLogger
-from src.summarize_algorithms.core.dialogue import Dialogue
-from src.summarize_algorithms.core.graph_nodes import (
+from src.benchmark.logger.memory_logger import MemoryLogger
+from src.algorithms.dialogue import Dialogue
+from src.algorithms.summarize_algorithms.core.graph_nodes import (
     UpdateState,
     generate_response_node,
     should_continue_memory_update,
     update_memory_node,
 )
-from src.summarize_algorithms.core.models import (
+from src.algorithms.summarize_algorithms.core.models import (
     DialogueState,
     LocalModels,
     OpenAIModels,
     Session,
-    WorkflowNode, MemoryDialogueState,
-)
-from src.summarize_algorithms.core.prompts import RESPONSE_GENERATION_PROMPT
-from src.summarize_algorithms.core.response_generator import ResponseGenerator
+    WorkflowNode, )
+from src.algorithms.summarize_algorithms.core.prompts import RESPONSE_GENERATION_PROMPT
+from src.algorithms.summarize_algorithms.core.response_generator import ResponseGenerator
 
 
 class BaseDialogueSystem(ABC, Dialogue):
