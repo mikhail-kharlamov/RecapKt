@@ -4,7 +4,7 @@ import pytest
 
 from langchain_core.language_models import BaseChatModel
 from langchain_core.messages import HumanMessage, SystemMessage
-from langchain_core.prompts import ChatPromptTemplate
+
 
 from src.algorithms.summarize_algorithms.core.models import BaseBlock, ResponseContext, Session
 from src.algorithms.summarize_algorithms.core.response_generator import ResponseGenerator
@@ -19,13 +19,8 @@ def mock_llm():
 
 
 @pytest.fixture
-def mock_prompt_template():
-    return create_autospec(ChatPromptTemplate)
-
-
-@pytest.fixture
-def response_generator(mock_llm, mock_prompt_template):
-    return ResponseGenerator(llm=mock_llm, prompt_template=mock_prompt_template)
+def response_generator(mock_llm):
+    return ResponseGenerator(llm=mock_llm)
 
 
 @pytest.fixture
@@ -33,9 +28,8 @@ def empty_session():
     return Session([])
 
 
-def test_initialization(response_generator, mock_llm, mock_prompt_template):
+def test_initialization(response_generator, mock_llm):
     assert response_generator._llm is mock_llm
-    assert response_generator._prompt_template is mock_prompt_template
     assert hasattr(response_generator, "_chain")
 
 
@@ -61,10 +55,9 @@ def test_generate_response_success(response_generator, empty_session):
     assert isinstance(result.prepared_history, list)
 
     mock_chain.invoke.assert_called_once()
-    call_args = mock_chain.invoke.call_args[0][0]
+    history = mock_chain.invoke.call_args[0][0]
 
-    assert "history" in call_args
-    history = call_args["history"]
+    assert isinstance(history, list)
 
     assert isinstance(history[0], SystemMessage)
     assert "The System Instruction ends here" in str(history[0].content)

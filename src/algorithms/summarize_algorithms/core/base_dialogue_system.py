@@ -8,11 +8,7 @@ from dotenv import load_dotenv
 from langchain_community.callbacks import get_openai_callback
 from langchain_core.embeddings import Embeddings
 from langchain_core.language_models import BaseChatModel
-from langchain_core.prompts import (
-    ChatPromptTemplate,
-    MessagesPlaceholder,
-    PromptTemplate,
-)
+from langchain_core.prompts import PromptTemplate
 from langchain_ollama.chat_models import ChatOllama
 from langchain_openai import ChatOpenAI
 from langgraph.constants import END
@@ -123,13 +119,8 @@ class BaseDialogueSystem(ABC, Dialogue):
             structure: dict[str, Any] | None = None,
             tools: list[dict[str, Any]] | None = None,
     ) -> CompiledStateGraph:
-        chat_prompt = ChatPromptTemplate.from_messages([
-            MessagesPlaceholder("history")
-        ])
-
         self.response_generator = ResponseGenerator(
             self.llm,
-            chat_prompt,
             structure=structure,
             tools=tools,
         )
