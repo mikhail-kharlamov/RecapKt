@@ -109,7 +109,7 @@ class Runner:
         f1_tool_evaluator_strict = F1ToolEvaluator("strict")
         f1_tool_evaluator = F1ToolEvaluator()
 
-        for count_of_sessions in [1, 3, 5, 7, 9, 11, 13, 15]:
+        for count_of_sessions in [3, 5, 7, 9, 11, 13, 15]:
             subdirectory: Path = Path(str(count_of_sessions))
 
             if name in ("full_baseline", "short_tools", "weights"):
@@ -347,7 +347,8 @@ if __name__ == "__main__":
     configure_logs(loglevel=logging.INFO)
 
     runner = Runner()
-    runner.run(sys.argv[1])
+    #runner.run(sys.argv[1])
+    runner.run("base_memory_bank")
 
     Runner.build_graph(
         [GeneralTrends],
