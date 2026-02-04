@@ -5,13 +5,13 @@ from abc import ABC, abstractmethod
 from pathlib import Path
 from typing import Any
 
-from src.benchmark.models.dtos import BaseRecord, MetricState
 from src.algorithms.summarize_algorithms.core.models import (
     DialogueState,
     MemoryBankDialogueState,
     RecsumDialogueState,
     Session,
 )
+from src.benchmark.models.dtos import BaseRecord, MetricState
 
 
 class BaseLogger(ABC):

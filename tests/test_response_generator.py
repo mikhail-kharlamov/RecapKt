@@ -5,9 +5,14 @@ import pytest
 from langchain_core.language_models import BaseChatModel
 from langchain_core.messages import HumanMessage, SystemMessage
 
-
-from src.algorithms.summarize_algorithms.core.models import BaseBlock, ResponseContext, Session
-from src.algorithms.summarize_algorithms.core.response_generator import ResponseGenerator
+from src.algorithms.summarize_algorithms.core.models import (
+    BaseBlock,
+    ResponseContext,
+    Session,
+)
+from src.algorithms.summarize_algorithms.core.response_generator import (
+    ResponseGenerator,
+)
 from src.utils.system_prompt_builder import MemorySections
 
 
@@ -39,15 +44,11 @@ def test_generate_response_success(response_generator, empty_session):
     response_generator._chain = mock_chain
 
     last_session = Session([BaseBlock(role="USER", content="Hi")])
-    code_mem = Session([])
-    tool_mem = Session([])
-    text_mem = Session([BaseBlock(role="SYSTEM", content="Some memory")])
 
     result = response_generator.generate_response(
         last_session=last_session,
         user_query="User question",
         memory=MemorySections(recap="Some memory"),
-        memory_mode="memory",
     )
 
     assert isinstance(result, ResponseContext)
@@ -76,7 +77,6 @@ def test_generate_response_exception(response_generator, empty_session):
                 last_session=empty_session,
                 user_query="q",
                 memory=MemorySections(),
-                memory_mode="baseline",
             )
 
     assert "API request failed: Network error" in str(exc_info.value)
@@ -89,13 +89,11 @@ def test_history_structure(response_generator):
     response_generator._chain = mock_chain
 
     last_ses = Session([BaseBlock(role="ASSISTANT", content="Prev answer")])
-    text_mem = Session([BaseBlock(role="SYSTEM", content="Memory info")])
 
     result = response_generator.generate_response(
         last_session=last_ses,
         user_query="New query",
         memory=MemorySections(recap="Memory info"),
-        memory_mode="memory",
     )
 
     history = result.prepared_history

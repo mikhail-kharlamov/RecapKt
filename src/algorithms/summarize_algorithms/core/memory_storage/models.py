@@ -1,7 +1,11 @@
 from dataclasses import dataclass
 from typing import override
 
-from src.algorithms.summarize_algorithms.core.models import BaseBlock, CodeBlock, ToolCallBlock
+from src.algorithms.summarize_algorithms.core.models import (
+    BaseBlock,
+    CodeBlock,
+    ToolCallBlock,
+)
 
 
 @dataclass

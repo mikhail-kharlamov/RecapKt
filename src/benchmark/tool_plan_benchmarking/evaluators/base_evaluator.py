@@ -1,11 +1,11 @@
 from abc import ABC, abstractmethod
 
-from src.benchmark.models.dtos import MetricState
 from src.algorithms.summarize_algorithms.core.models import (
     BaseBlock,
     DialogueState,
     Session,
 )
+from src.benchmark.models.dtos import MetricState
 
 
 class BaseEvaluator(ABC):

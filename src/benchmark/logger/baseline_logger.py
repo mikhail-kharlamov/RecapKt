@@ -4,9 +4,9 @@ import os
 from datetime import datetime
 from pathlib import Path
 
+from src.algorithms.summarize_algorithms.core.models import DialogueState, Session
 from src.benchmark.logger.base_logger import BaseLogger
 from src.benchmark.models.dtos import BaseRecord, MetricState
-from src.algorithms.summarize_algorithms.core.models import DialogueState, Session
 
 
 class BaselineLogger(BaseLogger):

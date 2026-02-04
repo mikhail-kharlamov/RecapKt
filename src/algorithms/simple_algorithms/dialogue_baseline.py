@@ -3,6 +3,8 @@ import os
 
 from typing import Any
 
+import tiktoken
+
 from dotenv import load_dotenv
 from langchain_community.callbacks import get_openai_callback
 from langchain_core.exceptions import OutputParserException
@@ -14,7 +16,6 @@ from langchain_core.messages import (
     trim_messages,
 )
 from langchain_core.output_parsers import StrOutputParser
-from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
 from langchain_core.runnables import Runnable
 from langchain_ollama.chat_models import ChatOllama
 from langchain_openai import ChatOpenAI
@@ -26,8 +27,6 @@ from tenacity import (
     wait_exponential,
 )
 
-from src.benchmark.logger.baseline_logger import BaselineLogger
-from src.utils.system_prompt_builder import MemorySections, SystemPromptBuilder
 from src.algorithms.dialogue import Dialogue
 from src.algorithms.summarize_algorithms.core.models import (
     DialogueState,
@@ -35,6 +34,8 @@ from src.algorithms.summarize_algorithms.core.models import (
     OpenAIModels,
     Session,
 )
+from src.benchmark.logger.baseline_logger import BaselineLogger
+from src.utils.system_prompt_builder import MemorySections, SystemPromptBuilder
 
 
 class DialogueBaseline(Dialogue):
@@ -45,7 +46,7 @@ class DialogueBaseline(Dialogue):
     a single message history, crops it to a token budget, and calls an LLM.
     """
 
-    def __init__(self, system_name: str, llm: BaseChatModel | None = None, is_local: bool = True) -> None:
+    def __init__(self, system_name: str, llm: BaseChatModel | None = None, is_local: bool = False) -> None:
         load_dotenv()
 
         self.system_name = system_name
@@ -87,39 +88,28 @@ class DialogueBaseline(Dialogue):
             raise ValueError("OPENAI_API_KEY environment variable is not loaded")
 
     def _build_chain(
-            self,
-            prompt: ChatPromptTemplate,
-            structure: dict[str, Any] | None = None,
-            tools: list[dict[str, Any]] | None = None
+        self,
+        structure: dict[str, Any] | None = None,
+        tools: list[dict[str, Any]] | None = None,
     ) -> Runnable:
+        """Build a runnable used for response generation.
+
+        Mirrors `ResponseGenerator._build_chain()` behavior:
+        - `process_dialogue()` assembles the full prompt as `list[BaseMessage]`
+          (unified SystemMessage + conversation history)
+        - therefore the chain must accept `list[BaseMessage]` directly (no prompt variables)
         """
-        Build a LangChain runnable for the current run.
-
-        Depending on `structure`/`tools`, the chain may return:
-        - plain text
-        - structured JSON
-        - tool calls
-
-        :param prompt: chat prompt template (system + history placeholder).
-        :param structure: optional schema for structured output.
-        :param tools: optional tool specs for tool calling.
-        :return: Runnable: composed chain.
-        """
-
         if structure and not tools:
-            structured_llm = self.llm.with_structured_output(structure)
-            return prompt | structured_llm
+            return self.llm.with_structured_output(structure)
 
         if tools and not structure:
-            llm_with_tools = self.llm.bind_tools(tools)
-            return prompt | llm_with_tools
+            return self.llm.bind_tools(tools)
 
         if tools and structure:
             tools = [DialogueBaseline._get_return_action_plan(structure), *tools]
-            llm_with_tools = self.llm.bind_tools(tools)
-            return prompt | llm_with_tools
+            return self.llm.bind_tools(tools)
 
-        return prompt | self.llm | StrOutputParser()
+        return self.llm | StrOutputParser()
 
     @staticmethod
     def _get_return_action_plan(structure: dict[str, Any]) -> dict[str, Any]:
@@ -139,7 +129,13 @@ class DialogueBaseline(Dialogue):
             context_messages.extend(session.to_langchain_messages())
         return context_messages
 
-    def _crop(self, messages: list[Any], max_tokens: int = 100000) -> list[BaseMessage]:
+    @staticmethod
+    def __count_tokens(text: str) -> int:
+        encoding = tiktoken.get_encoding("o200k_base")
+        tokens = encoding.encode(text)
+        return len(tokens)
+
+    def _crop(self, messages: list[Any], max_tokens: int = 80_000) -> list[BaseMessage]:
         """
         Trim a list of messages to fit into a token budget.
 
@@ -157,6 +153,10 @@ class DialogueBaseline(Dialogue):
         else:
             messages_to_trim = messages
 
+        # Log token counts before trimming
+        total_tokens_before_crop = self.llm.get_num_tokens_from_messages(messages_to_trim)
+        logging.info(f"Total tokens before crop: {total_tokens_before_crop}")
+
         trimmed_messages = trim_messages(
             messages_to_trim,
             token_counter=self.llm,
@@ -170,6 +170,9 @@ class DialogueBaseline(Dialogue):
             trimmed_messages.pop(0)
 
         if system_msg:
+            # Log token count after trimming
+            total_tokens_after_crop = self.llm.get_num_tokens_from_messages(trimmed_messages)
+            logging.info(f"Total tokens after crop (without system message): {total_tokens_after_crop}")
             return [system_msg] + trimmed_messages
         return trimmed_messages
 
@@ -202,6 +205,10 @@ class DialogueBaseline(Dialogue):
         :return: DialogueState: contains the prepared history and model response.
         """
         compressed_sessions: list[BaseMessage] = type(self)._compress(sessions)
+        # Log tokens before crop
+        total_tokens_before_crop = self.llm.get_num_tokens_from_messages(compressed_sessions)
+        logging.info(f"Total tokens before crop (compressed sessions): {total_tokens_before_crop}")
+
         context: list[BaseMessage] = self._crop(compressed_sessions)
 
         system_instruction = self._prompt_builder.build(
@@ -210,14 +217,15 @@ class DialogueBaseline(Dialogue):
             memory_mode="baseline",
         )
 
-        chat_prompt = ChatPromptTemplate.from_messages([
-            MessagesPlaceholder("history")
-        ])
+        # Log tokens in system message
+        system_message_tokens = self.llm.get_num_tokens_from_messages([SystemMessage(content=system_instruction)])
+        logging.info(f"Tokens in system message: {system_message_tokens}")
 
-        if structure or tools:
-            chain = self._build_chain(chat_prompt, structure, tools)
-        else:
-            chain = chat_prompt | self.llm | StrOutputParser()
+        # Log tokens in context after crop
+        total_tokens_after_crop = self.llm.get_num_tokens_from_messages(context)
+        logging.info(f"Total tokens in context after crop: {total_tokens_after_crop}")
+
+        chain = self._build_chain(structure, tools)
 
         @retry(
             stop=stop_after_attempt(3),
@@ -225,9 +233,9 @@ class DialogueBaseline(Dialogue):
             retry=retry_if_exception_type(OutputParserException),
             reraise=True
         )
-        def invoke_with_retry(input_data: dict[str, list[BaseMessage]]) -> Any:
+        def invoke_with_retry(full_history: list[BaseMessage]) -> Any:
             logging.info("Attempting to invoke chain...")
-            return chain.invoke(input_data)
+            return chain.invoke(full_history)
 
         # Ensure the unified SystemMessage is the first message in the flow.
         context_with_system: list[BaseMessage] = self._crop(
@@ -235,7 +243,7 @@ class DialogueBaseline(Dialogue):
         )
 
         with get_openai_callback() as cb:
-            result = invoke_with_retry({"history": context_with_system})
+            result = invoke_with_retry(context_with_system)
 
             self.prompt_tokens += cb.prompt_tokens
             self.completion_tokens += cb.completion_tokens

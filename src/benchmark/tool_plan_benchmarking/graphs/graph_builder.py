@@ -4,7 +4,10 @@ import pandas as pd
 
 from matplotlib import pyplot as plt
 
-from src.benchmark.models.dtos import AlgorithmStatistics, StatisticsDto
+from src.benchmark.tool_plan_benchmarking.statistics.dtos import (
+    AlgorithmStatistics,
+    StatisticsDto,
+)
 
 
 class GraphBuilder(ABC):
@@ -41,8 +44,13 @@ class GraphBuilder(ABC):
             for alg in algorithms
             for run in alg.runs
         ]
-        return pd.DataFrame(rows)
+
+        # Ensure expected columns exist even when there are no rows.
+        columns = ["algorithm", "metric", "sessions", "value"]
+        return pd.DataFrame(rows, columns=columns)
 
     @staticmethod
     def _save_figure(path: str = "graph.png") -> None:
-        plt.savefig(path, dpi=300, bbox_inches="tight")
+        # Some callers pass an empty string; treat it as "use default".
+        safe_path = path or "graph.png"
+        plt.savefig(safe_path, dpi=300, bbox_inches="tight")

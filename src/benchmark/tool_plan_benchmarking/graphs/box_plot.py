@@ -2,8 +2,8 @@ import seaborn as sns
 
 from matplotlib import pyplot as plt
 
-from src.benchmark.models.dtos import StatisticsDto
 from src.benchmark.tool_plan_benchmarking.graphs.graph_builder import GraphBuilder
+from src.benchmark.tool_plan_benchmarking.statistics.dtos import StatisticsDto
 
 
 class BoxPlot(GraphBuilder):
@@ -17,7 +17,7 @@ class BoxPlot(GraphBuilder):
     def build(
             statistics: StatisticsDto,
             path_to_save: str,
-            title: str = ""
+            title: str = "",
     ) -> None:
         df = BoxPlot._runs_to_dataframe(statistics)
 
@@ -50,5 +50,5 @@ class BoxPlot(GraphBuilder):
         plt.xticks(rotation=20)
         plt.tight_layout()
         BoxPlot._save_figure(path_to_save)
-        plt.show()
+        plt.close()
 

@@ -9,7 +9,9 @@ from src.algorithms.summarize_algorithms.core.models import (
     Session,
     UpdateState,
 )
-from src.algorithms.summarize_algorithms.core.response_generator import ResponseGenerator
+from src.algorithms.summarize_algorithms.core.response_generator import (
+    ResponseGenerator,
+)
 from src.utils.system_prompt_builder import MemorySections
 
 
@@ -84,8 +86,7 @@ def generate_response_node(
     final_response: ResponseContext = response_generator_instance.generate_response(
         last_session=state.last_session,
         user_query=state.query,
-        memory=memory_sections,
-        memory_mode="memory",
+        memory=memory_sections
     )
 
     state._response = final_response.response

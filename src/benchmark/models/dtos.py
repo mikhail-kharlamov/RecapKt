@@ -4,38 +4,14 @@ from typing import Any
 
 from dataclasses_json import DataClassJsonMixin, dataclass_json
 
-from src.benchmark.models.enums import MetricType
 from src.algorithms.summarize_algorithms.core.models import BaseBlock, OpenAIModels
+from src.benchmark.models.enums import MetricType
 
 
 @dataclass
 class DividedSession:
     reference: list[BaseBlock]
     past_interactions: list[BaseBlock]
-
-
-@dataclass
-class AlgorithmRun:
-    algorithm: str
-    metric: MetricType
-    value: float
-    sessions: int
-
-
-@dataclass
-class AlgorithmStatistics:
-    name: str
-    metric: MetricType
-    count_of_launches: int
-    mean: float
-    variance: float
-    runs: list[AlgorithmRun]
-    # mode: int | float
-
-
-@dataclass
-class StatisticsDto:
-    algorithms: list[AlgorithmStatistics]
 
 
 @dataclass_json

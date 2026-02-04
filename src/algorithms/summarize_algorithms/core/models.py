@@ -81,7 +81,7 @@ class Session:
                 result_messages.append(f"{msg.role}: {msg.code}")
             if isinstance(msg, ToolCallBlock):
                 result_messages.append(
-                    f"Tool Call [{msg.id}]: {msg.name} - {msg.arguments} -> {msg.response}"
+                    f"Tool Call [{msg.id}]: {msg.name} - {msg.arguments} -> {msg.response}: {msg.content}"
                 )
             else:
                 result_messages.append(f"{msg.role}: {msg.content}")
@@ -188,7 +188,9 @@ class DialogueState:
 
     Contains the dialogue history (`dialogue_sessions`), memory stores, and the final generated response.
     """
-    from src.algorithms.summarize_algorithms.core.memory_storage.memory_storage import MemoryStorage
+    from src.algorithms.summarize_algorithms.core.memory_storage.memory_storage import (
+        MemoryStorage,
+    )
 
     dialogue_sessions: list[Session]
     prepared_messages: list[BaseMessage]
@@ -231,7 +233,9 @@ class RecsumDialogueState(MemoryDialogueState):
 @dataclass
 class MemoryBankDialogueState(MemoryDialogueState):
     """Dialogue state for `MemoryBankDialogueSystem` (stores session summaries in `text_memory_storage`)."""
-    from src.algorithms.summarize_algorithms.core.memory_storage.memory_storage import MemoryStorage
+    from src.algorithms.summarize_algorithms.core.memory_storage.memory_storage import (
+        MemoryStorage,
+    )
 
     text_memory_storage: MemoryStorage = field(default_factory=MemoryStorage)
 

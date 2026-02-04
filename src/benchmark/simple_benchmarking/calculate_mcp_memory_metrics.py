@@ -3,6 +3,11 @@ import random
 from datetime import datetime
 from typing import Any
 
+from src.algorithms.summarize_algorithms.core.models import RecsumDialogueState
+from src.algorithms.summarize_algorithms.memory_bank.dialogue_system import (
+    MemoryBankDialogueState,
+    MemoryBankDialogueSystem,
+)
 from src.benchmark.simple_benchmarking.llm_evaluation import LLMMemoryEvaluation
 from src.benchmark.simple_benchmarking.metric_calculator import (
     CalculateMCPMetrics,
@@ -13,11 +18,6 @@ from src.benchmark.simple_benchmarking.metric_calculator import (
     SystemResults,
 )
 from src.benchmark.simple_benchmarking.semantic_similarity import SemanticSimilarity
-from src.algorithms.summarize_algorithms.core.models import RecsumDialogueState
-from src.algorithms.summarize_algorithms.memory_bank.dialogue_system import (
-    MemoryBankDialogueState,
-    MemoryBankDialogueSystem,
-)
 
 
 class CalculateMCPMemoryMetrics(CalculateMCPMetrics):

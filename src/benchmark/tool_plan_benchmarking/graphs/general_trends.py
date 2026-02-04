@@ -1,9 +1,11 @@
+import logging
+
 import seaborn as sns
 
 from matplotlib import pyplot as plt
 
-from src.benchmark.models.dtos import StatisticsDto
 from src.benchmark.tool_plan_benchmarking.graphs.graph_builder import GraphBuilder
+from src.benchmark.tool_plan_benchmarking.statistics.dtos import StatisticsDto
 
 
 class GeneralTrends(GraphBuilder):
@@ -23,8 +25,22 @@ class GeneralTrends(GraphBuilder):
 
         df = GeneralTrends._runs_to_dataframe(statistics)
 
+        if df.empty:
+            logging.getLogger(__name__).warning(
+                "No runs found for graph '%s' (empty statistics). Skipping plot building.",
+                GeneralTrends.__name__,
+            )
+            return
+
         grouped = df.groupby(["algorithm", "sessions"])["value"]
         summary = grouped.mean().reset_index(name="mean")
+
+        if summary.empty:
+            logging.getLogger(__name__).warning(
+                "No aggregated points for graph '%s'. Skipping plot building.",
+                GeneralTrends.__name__,
+            )
+            return
 
         fig, ax = plt.subplots(figsize=(10, 6))
 
@@ -45,4 +61,4 @@ class GeneralTrends(GraphBuilder):
         fig.tight_layout()
 
         GeneralTrends._save_figure(path_to_save)
-        plt.show()
+        plt.close(fig)

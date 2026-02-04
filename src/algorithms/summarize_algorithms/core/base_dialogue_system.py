@@ -1,4 +1,5 @@
 import functools
+import logging
 import os
 
 from abc import ABC, abstractmethod
@@ -7,6 +8,7 @@ from typing import Any
 from dotenv import load_dotenv
 from langchain_community.callbacks import get_openai_callback
 from langchain_core.embeddings import Embeddings
+from langchain_core.exceptions import OutputParserException
 from langchain_core.language_models import BaseChatModel
 from langchain_core.prompts import PromptTemplate
 from langchain_ollama.chat_models import ChatOllama
@@ -15,8 +17,13 @@ from langgraph.constants import END
 from langgraph.graph import StateGraph
 from langgraph.graph.state import CompiledStateGraph
 from pydantic import SecretStr
+from tenacity import (
+    retry,
+    retry_if_exception_type,
+    stop_after_attempt,
+    wait_exponential,
+)
 
-from src.benchmark.logger.memory_logger import MemoryLogger
 from src.algorithms.dialogue import Dialogue
 from src.algorithms.summarize_algorithms.core.graph_nodes import (
     UpdateState,
@@ -29,12 +36,18 @@ from src.algorithms.summarize_algorithms.core.models import (
     LocalModels,
     OpenAIModels,
     Session,
-    WorkflowNode, )
+    WorkflowNode,
+)
 from src.algorithms.summarize_algorithms.core.prompts import RESPONSE_GENERATION_PROMPT
-from src.algorithms.summarize_algorithms.core.response_generator import ResponseGenerator
+from src.algorithms.summarize_algorithms.core.response_generator import (
+    ResponseGenerator,
+)
+from src.benchmark.logger.memory_logger import MemoryLogger
 
 
 class BaseDialogueSystem(ABC, Dialogue):
+    _MAX_PROMPT_TOKENS = 80_000
+
     """
     Shared LangGraph-based implementation for dialogue systems in this repository.
 
@@ -53,7 +66,7 @@ class BaseDialogueSystem(ABC, Dialogue):
         embed_model: Embeddings | None = None,
         max_session_id: int = 3,
         system_name: str | None = None,
-        is_local: bool = True,
+        is_local: bool = False,
     ) -> None:
         self.system_name = system_name or self.__class__.__name__
 
@@ -114,15 +127,17 @@ class BaseDialogueSystem(ABC, Dialogue):
                 api_key=SecretStr(api_key)
             )
 
+
     def _build_graph(
-            self,
-            structure: dict[str, Any] | None = None,
-            tools: list[dict[str, Any]] | None = None,
+        self,
+        structure: dict[str, Any] | None = None,
+        tools: list[dict[str, Any]] | None = None,
     ) -> CompiledStateGraph:
         self.response_generator = ResponseGenerator(
             self.llm,
             structure=structure,
             tools=tools,
+            max_prompt_tokens=self._MAX_PROMPT_TOKENS,
         )
 
         workflow = StateGraph(self._get_dialogue_state_class)
@@ -170,8 +185,21 @@ class BaseDialogueSystem(ABC, Dialogue):
         graph = self._build_graph(structure, tools)
         initial_state = self._get_initial_state(sessions, sessions[-1], system_prompt)
 
+        @retry(
+            stop=stop_after_attempt(3),
+            wait=wait_exponential(multiplier=1, min=2, max=10),
+            retry=retry_if_exception_type(OutputParserException),
+            reraise=True,
+        )
+        def invoke_with_retry(state: DialogueState) -> dict[str, Any]:
+            logging.info("Attempting to invoke graph...")
+            result = graph.invoke(state)
+            if not isinstance(result, dict):
+                raise TypeError(f"Graph invocation returned unexpected type: {type(result)}")
+            return result
+
         with get_openai_callback() as cb:
-            result_state = graph.invoke(initial_state)
+            result_state = invoke_with_retry(initial_state)
             self.state = self._get_dialogue_state_class(**result_state)
 
             self.prompt_tokens += cb.prompt_tokens

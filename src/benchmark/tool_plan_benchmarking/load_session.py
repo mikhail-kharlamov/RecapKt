@@ -3,7 +3,11 @@ import json
 from pathlib import Path
 from typing import Any
 
-from src.algorithms.summarize_algorithms.core.models import BaseBlock, Session, ToolCallBlock
+from src.algorithms.summarize_algorithms.core.models import (
+    BaseBlock,
+    Session,
+    ToolCallBlock,
+)
 
 
 class Loader:

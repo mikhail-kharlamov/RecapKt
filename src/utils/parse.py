@@ -1,8 +1,8 @@
 from pathlib import Path
 
+from src.algorithms.summarize_algorithms.core.models import ToolCallBlock
 from src.benchmark.tool_plan_benchmarking.load_session import Loader
 from src.benchmark.tool_plan_benchmarking.run import BASE_DATA_PATH, JSON_FILE_TEMPLATE
-from src.algorithms.summarize_algorithms.core.models import ToolCallBlock
 
 path_data_type_1: Path = Path(BASE_DATA_PATH)  / "data_type_1"
 for file in path_data_type_1.glob(JSON_FILE_TEMPLATE):

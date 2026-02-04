@@ -4,15 +4,15 @@ from unittest.mock import MagicMock
 
 import pytest
 
-from src.benchmarking.models.dtos import BaseRecord, MetricState
-from src.benchmarking.models.enums import MetricType
-from src.benchmarking.tool_metrics.calculator import Calculator
-from src.algorithms.summarize_algorithms import Dialogue
+from src.algorithms.dialogue import Dialogue
 from src.algorithms.summarize_algorithms.core.models import (
     BaseBlock,
     DialogueState,
     Session,
 )
+from src.benchmark.models.dtos import BaseRecord, MetricState
+from src.benchmark.models.enums import MetricType
+from src.benchmark.tool_plan_benchmarking.calculator import Calculator
 
 
 @pytest.fixture

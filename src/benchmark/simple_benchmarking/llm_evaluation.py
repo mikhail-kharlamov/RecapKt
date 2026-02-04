@@ -11,6 +11,7 @@ from langchain_core.runnables import RunnableSerializable
 from langchain_openai import ChatOpenAI
 from pydantic import BaseModel, Field, SecretStr
 
+from src.algorithms.summarize_algorithms.core.models import OpenAIModels
 from src.benchmark.simple_benchmarking.prompts import (
     PAIRWISE_EVALUATION_AGENT_RESPONSE,
     PAIRWISE_EVALUATION_MEMORY_PROMPT,
@@ -19,7 +20,6 @@ from src.benchmark.simple_benchmarking.prompts import (
     SINGLE_EVALUATION_MEMORY_PROMPT,
     SINGLE_EVALUATION_RESPONSE_PROMPT,
 )
-from src.algorithms.summarize_algorithms.core.models import OpenAIModels
 
 
 class ComparisonResult(Enum):

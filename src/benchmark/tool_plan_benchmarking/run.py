@@ -10,27 +10,10 @@ import tiktoken
 from jinja2 import Environment, FileSystemLoader
 from load_dotenv import load_dotenv
 
+from src.algorithms.dialogue import Dialogue
 from src.algorithms.simple_algorithms.dialog_short_tools import DialogueWithShortTools
 from src.algorithms.simple_algorithms.dialog_with_weights import DialogueWithWeights
 from src.algorithms.simple_algorithms.dialogue_baseline import DialogueBaseline
-from src.benchmark.logger.baseline_logger import BaselineLogger
-from src.benchmark.logger.memory_logger import MemoryLogger
-from src.benchmark.models.dtos import (
-    MODEL_PRICES,
-    AlgorithmStatistics,
-    BaseRecord,
-    DividedSession,
-    MemoryRecord,
-    StatisticsDto,
-    TokenInfo,
-)
-from src.benchmark.models.enums import AlgorithmDirectory, AlgorithmName, MetricType
-from src.benchmark.tool_plan_benchmarking.evaluators.f1_tool_evaluator import F1ToolEvaluator
-from src.benchmark.tool_plan_benchmarking.graphs.general_trends import GeneralTrends
-from src.benchmark.tool_plan_benchmarking.graphs.graph_builder import GraphBuilder
-from src.benchmark.tool_plan_benchmarking.load_session import Loader
-from src.benchmark.tool_plan_benchmarking.statistics_calc import Statistics
-from src.algorithms.dialogue import Dialogue
 from src.algorithms.summarize_algorithms.core.models import (
     BaseBlock,
     OpenAIModels,
@@ -39,13 +22,37 @@ from src.algorithms.summarize_algorithms.core.models import (
 from src.algorithms.summarize_algorithms.memory_bank.dialogue_system import (
     MemoryBankDialogueSystem,
 )
-from src.algorithms.summarize_algorithms.recsum.dialogue_system import RecsumDialogueSystem
+from src.algorithms.summarize_algorithms.recsum.dialogue_system import (
+    RecsumDialogueSystem,
+)
+from src.benchmark.logger.baseline_logger import BaselineLogger
+from src.benchmark.logger.memory_logger import MemoryLogger
+from src.benchmark.models.dtos import (
+    MODEL_PRICES,
+    BaseRecord,
+    DividedSession,
+    MemoryRecord,
+    TokenInfo,
+)
+from src.benchmark.models.enums import AlgorithmDirectory, AlgorithmName, MetricType
+from src.benchmark.tool_plan_benchmarking.evaluators.f1_tool_evaluator import (
+    F1ToolEvaluator,
+)
+from src.benchmark.tool_plan_benchmarking.graphs.box_plot import BoxPlot
+from src.benchmark.tool_plan_benchmarking.graphs.graph_builder import GraphBuilder
+from src.benchmark.tool_plan_benchmarking.load_session import Loader
+from src.benchmark.tool_plan_benchmarking.statistics.dtos import (
+    AlgorithmStatistics,
+    StatisticsDto,
+)
+from src.benchmark.tool_plan_benchmarking.statistics.statistics import Statistics
 from src.utils.configure_logs import configure_logs
 
 load_dotenv()
 
 BASE_DATA_PATH = os.getenv("BASE_DATA_PATH", "")
-LOGS_PATH = os.getenv("LOGS_PATH", "")
+LOGS_PATH = os.getenv("LOGS_PATH", Path(__file__).resolve().parent / "logs" / "memory")
+
 JSON_FILE_TEMPLATE: str = "*.json"
 
 
@@ -92,7 +99,7 @@ class Runner:
                 Loader.load_session_data_type_1(file)
             )
 
-        path_data_type_2: Path = Path(BASE_DATA_PATH)  / "data_type_2"
+        path_data_type_2: Path = Path(BASE_DATA_PATH) / "data_type_2"
         for file in path_data_type_2.glob(JSON_FILE_TEMPLATE):
             past_interactions.append(
                 Loader.load_session_data_type_2(file)
@@ -109,7 +116,7 @@ class Runner:
         f1_tool_evaluator_strict = F1ToolEvaluator("strict")
         f1_tool_evaluator = F1ToolEvaluator()
 
-        for count_of_sessions in [3, 5, 7, 9, 11, 13, 15]:
+        for count_of_sessions in [1, 3, 5, 7, 9, 11, 13, 15]:
             subdirectory: Path = Path(str(count_of_sessions))
 
             if name in ("full_baseline", "short_tools", "weights"):
@@ -292,18 +299,36 @@ class Runner:
 
     @staticmethod
     def build_graph(
-            graph_types: list[type[GraphBuilder]],
-            directories: list[Path | str],
+        graph_types: list[type[GraphBuilder]],
+        directories: list[Path | str],
+        normalize: bool = False,
     ) -> None:
+        path = Path(LOGS_PATH)
+        if not path.exists():
+            logging.getLogger(__name__).warning(
+                "LOGS_PATH does not exist: %s. Set env LOGS_PATH or place logs under the default path.",
+                path,
+            )
+            return
+
         algs: list[AlgorithmStatistics] = []
         for fold in [1, 3, 5, 7, 9, 11, 13, 15]:
             ps: list[Path] = []
-            path = Path(LOGS_PATH)
-            for directory in directories:
+            for directory in sorted({str(d) for d in directories}):
                 folder = path / directory / f"{fold}"
-                for p in folder.glob(JSON_FILE_TEMPLATE):
-                    ps.append(p)
-                ps.sort()
+                if not folder.exists():
+                    continue
+                ps.extend(folder.glob(JSON_FILE_TEMPLATE))
+
+            ps.sort()
+
+            if not ps:
+                logging.getLogger(__name__).info(
+                    "No log files found for fold=%s under %s. Skipping fold.",
+                    fold,
+                    path,
+                )
+                continue
 
             r: list[BaseRecord] = []
             for p in ps:
@@ -315,21 +340,27 @@ class Runner:
                         data = BaseRecord.from_dict(j)
                     r.append(data)
 
-            stats = Statistics.calculate_by_logs(fold, r)
+            stats = Statistics.calculate_by_logs(fold, r, normalize=normalize)
             algs.extend(stats.algorithms)
             Statistics.print_statistics(stats)
 
-        f1_algs = []
-        f1_strict = []
         for graph in graph_types:
-            for alg in algs:
-                if alg.metric == MetricType.F1_TOOL:
-                    f1_algs.append(alg)
-                else:
-                    f1_strict.append(alg)
+            f1_algs = [alg for alg in algs if alg.metric == MetricType.F1_TOOL]
+            f1_strict = [alg for alg in algs if alg.metric != MetricType.F1_TOOL]
 
-            graph.build(StatisticsDto(algorithms=f1_algs), "", "nonstrict")
-            graph.build(StatisticsDto(algorithms=f1_strict), "", "strict")
+            graphs_dir = path / "graphs"
+            graphs_dir.mkdir(parents=True, exist_ok=True)
+
+            graph.build(
+                StatisticsDto(algorithms=f1_algs),
+                str(graphs_dir / f"{graph.__name__}_nonstrict.png"),
+                "nonstrict",
+            )
+            graph.build(
+                StatisticsDto(algorithms=f1_strict),
+                str(graphs_dir / f"{graph.__name__}_strict.png"),
+                "strict",
+            )
 
     def __prepare_system_prompt(self) -> str:
         template = self._env.get_template("first_stage.j2")
@@ -347,11 +378,10 @@ if __name__ == "__main__":
     configure_logs(loglevel=logging.INFO)
 
     runner = Runner()
-    #runner.run(sys.argv[1])
-    runner.run("base_memory_bank")
+    runner.run(sys.argv[1])
 
     Runner.build_graph(
-        [GeneralTrends],
+        [BoxPlot],
         [
             AlgorithmDirectory.FULL_BASELINE.value,
             AlgorithmDirectory.LAST_BASELINE.value,
@@ -362,5 +392,6 @@ if __name__ == "__main__":
             AlgorithmDirectory.BASE_RECSUM.value,
             AlgorithmDirectory.WEIGHTS.value,
             AlgorithmDirectory.SHORT_TOOLS.value,
-        ]
+        ],
+        normalize=False,
     )

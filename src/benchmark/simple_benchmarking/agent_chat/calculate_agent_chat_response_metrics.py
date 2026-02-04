@@ -6,17 +6,21 @@ from dataclasses import dataclass, field
 from pathlib import Path
 
 from src.algorithms.simple_algorithms.dialogue_baseline import DialogueBaseline
-from src.benchmark.simple_benchmarking.agent_chat.deserialize_agent_chat import ChatDataset
+from src.algorithms.summarize_algorithms.core.models import Session
+from src.algorithms.summarize_algorithms.memory_bank.dialogue_system import (
+    MemoryBankDialogueSystem,
+)
+from src.algorithms.summarize_algorithms.recsum.dialogue_system import (
+    RecsumDialogueSystem,
+)
+from src.benchmark.simple_benchmarking.agent_chat.deserialize_agent_chat import (
+    ChatDataset,
+)
 from src.benchmark.simple_benchmarking.llm_evaluation import (
     ComparisonResult,
     LLMChatAgentEvaluation,
     SingleChatAgentResult,
 )
-from src.algorithms.summarize_algorithms.core.models import Session
-from src.algorithms.summarize_algorithms.memory_bank.dialogue_system import (
-    MemoryBankDialogueSystem,
-)
-from src.algorithms.summarize_algorithms.recsum.dialogue_system import RecsumDialogueSystem
 
 
 @dataclass

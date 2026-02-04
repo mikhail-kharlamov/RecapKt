@@ -3,8 +3,8 @@ import seaborn as sns
 
 from matplotlib import pyplot as plt
 
-from src.benchmark.models.dtos import StatisticsDto
 from src.benchmark.tool_plan_benchmarking.graphs.graph_builder import GraphBuilder
+from src.benchmark.tool_plan_benchmarking.statistics.dtos import StatisticsDto
 
 
 class TrendsWithQuantiles(GraphBuilder):
@@ -42,7 +42,7 @@ class TrendsWithQuantiles(GraphBuilder):
         ax.legend()
         fig.tight_layout()
         TrendsWithQuantiles._save_figure(path_to_save)
-        plt.show()
+        plt.close(fig)
 
     @staticmethod
     def __summarize_for_bands(df: pd.DataFrame, q_low: float = 0.25, q_high: float = 0.75) -> pd.DataFrame:

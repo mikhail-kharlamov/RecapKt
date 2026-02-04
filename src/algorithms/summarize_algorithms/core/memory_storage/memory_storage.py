@@ -17,7 +17,11 @@ from src.algorithms.summarize_algorithms.core.memory_storage.models import (
     MemoryFragment,
     ToolMemoryFragment,
 )
-from src.algorithms.summarize_algorithms.core.models import BaseBlock, CodeBlock, ToolCallBlock
+from src.algorithms.summarize_algorithms.core.models import (
+    BaseBlock,
+    CodeBlock,
+    ToolCallBlock,
+)
 
 
 class MemoryStorage:
