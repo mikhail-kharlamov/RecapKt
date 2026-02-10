@@ -13,7 +13,7 @@ from src.benchmark.simple_benchmarking.metric_calculator import (
     RawSemanticData,
     SystemResults,
 )
-from src.benchmark.simple_benchmarking.semantic_similarity import SemanticSimilarity
+from src.utils.semantic_similarity import SemanticSimilarity
 
 
 class CalculateMCPResponseMetrics(CalculateMCPMetrics):

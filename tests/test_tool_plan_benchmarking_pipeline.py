@@ -28,7 +28,7 @@ class FakeAlgo:
 
 def test_calculator_end_to_end_logs_metrics(tmp_path: Path) -> None:
     algo = FakeAlgo()
-    evaluator = F1ToolEvaluator(mode="simple")
+    evaluator_simple = F1ToolEvaluator(mode="simple")
     logger = BaselineLogger(logs_dir=tmp_path)
 
     sessions = []
@@ -36,7 +36,7 @@ def test_calculator_end_to_end_logs_metrics(tmp_path: Path) -> None:
 
     records = Calculator.evaluate(
         algorithms=[algo],
-        evaluator_functions=[evaluator],
+        evaluator_functions=[evaluator_simple],
         sessions=sessions,
         prompt="q",
         reference=reference,
@@ -54,3 +54,20 @@ def test_calculator_end_to_end_logs_metrics(tmp_path: Path) -> None:
     # Note: Calculator passes `algorithm.system_name / subdirectory` to the logger.
     written = list((tmp_path / "FakeAlgorithm" / "sub").glob("FakeAlgorithm-*.json"))
     assert len(written) == 1
+
+    # Now append a *new* metric into the same JSON file.
+    evaluator_strict = F1ToolEvaluator(mode="strict")
+
+    updated = Calculator.evaluate_by_logs(
+        algorithms=[algo],
+        evaluator_functions=[evaluator_strict],
+        reference=reference,
+        logs_path=tmp_path,
+        subdirectory=Path("sub"),
+        iteration=1,
+    )
+
+    assert len(updated) == 1
+    assert updated[0].metric is not None
+    metric_names = {m.metric_name.value for m in updated[0].metric}
+    assert "F1_TOOL_STRICT" in metric_names

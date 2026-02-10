@@ -1,12 +1,10 @@
+import argparse
 import json
 import logging
 import os
-import sys
-
 from pathlib import Path
 
 import tiktoken
-
 from jinja2 import Environment, FileSystemLoader
 from load_dotenv import load_dotenv
 
@@ -38,8 +36,9 @@ from src.benchmark.models.enums import AlgorithmDirectory, AlgorithmName, Metric
 from src.benchmark.tool_plan_benchmarking.evaluators.f1_tool_evaluator import (
     F1ToolEvaluator,
 )
-from src.benchmark.tool_plan_benchmarking.graphs.box_plot import BoxPlot
+from src.benchmark.tool_plan_benchmarking.graphs.general_trends import GeneralTrends
 from src.benchmark.tool_plan_benchmarking.graphs.graph_builder import GraphBuilder
+from src.benchmark.tool_plan_benchmarking.graphs.trends_with_quantiles import TrendsWithQuantiles
 from src.benchmark.tool_plan_benchmarking.load_session import Loader
 from src.benchmark.tool_plan_benchmarking.statistics.dtos import (
     AlgorithmStatistics,
@@ -114,6 +113,7 @@ class Runner:
         prompt = session[-1].content if len(session) > 0 else ""
 
         f1_tool_evaluator_strict = F1ToolEvaluator("strict")
+        f1_tool_evaluator_arguments_similarity = F1ToolEvaluator("arguments_similarity")
         f1_tool_evaluator = F1ToolEvaluator()
 
         for count_of_sessions in [1, 3, 5, 7, 9, 11, 13, 15]:
@@ -124,7 +124,11 @@ class Runner:
                 statistics: StatisticsDto = Statistics.calculate(
                     5,
                     [algorithm],
-                    [f1_tool_evaluator, f1_tool_evaluator_strict],
+                    [
+                        f1_tool_evaluator,
+                        f1_tool_evaluator_strict,
+                        f1_tool_evaluator_arguments_similarity
+                    ],
                     past_interactions,
                     count_of_sessions,
                     Session(session),
@@ -140,7 +144,11 @@ class Runner:
                 statistics = Statistics.calculate(
                     5,
                     [algorithm],
-                    [f1_tool_evaluator, f1_tool_evaluator_strict],
+                    [
+                        f1_tool_evaluator,
+                        f1_tool_evaluator_strict,
+                        f1_tool_evaluator_arguments_similarity
+                    ],
                     [],
                     count_of_sessions,
                     Session(session),
@@ -156,7 +164,11 @@ class Runner:
                 statistics = Statistics.calculate(
                     5,
                     [algorithm],
-                    [f1_tool_evaluator, f1_tool_evaluator_strict],
+                    [
+                        f1_tool_evaluator,
+                        f1_tool_evaluator_strict,
+                        f1_tool_evaluator_arguments_similarity
+                    ],
                     past_interactions,
                     count_of_sessions,
                     Session(session),
@@ -171,6 +183,57 @@ class Runner:
         Statistics.print_statistics(
             statistics
         )
+
+    def evaluate_by_logs(
+            self,
+            name: str,
+            logs_path: Path | str = LOGS_PATH,
+            iteration: int | None = None,
+    ) -> None:
+        """Append newly-added metrics to existing log JSONs and print updated statistics.
+
+        This mode does *not* re-run the dialogue system. It:
+        - loads `gold_session.json` from `BASE_DATA_PATH` to build the reference trace
+        - re-evaluates the latest saved logs under `logs_path` (in-place)
+
+        CLI usage (see `__main__` below):
+            python -m src.benchmark.tool_plan_benchmarking.run <algo> --eval-by-logs [--logs-path PATH] [--iteration N]
+        """
+        algorithm: Dialogue = Runner.__init_algorithm(AlgorithmName(name))
+
+        gold_session: Session = Loader.load_session_data_type_1(Path(BASE_DATA_PATH) / "gold_session.json")
+        divided_session: DividedSession = self.__divide_session(gold_session)
+        reference = divided_session.reference
+
+        f1_tool_evaluator_strict = F1ToolEvaluator("strict")
+        f1_tool_evaluator_arguments_similarity = F1ToolEvaluator("arguments_similarity")
+        f1_tool_evaluator = F1ToolEvaluator("nonstrict")
+
+        if name in ("full_baseline", "short_tools", "weights"):
+            logger = BaselineLogger()
+        else:
+            logger = MemoryLogger()
+
+        for count_of_sessions in [1, 3, 5, 7, 9, 11, 13, 15]:
+            subdirectory: Path = Path(str(count_of_sessions))
+            self._logger.info("Start evaluating by logs (fold=%s)", count_of_sessions)
+
+            statistics = Statistics.calculate_with_new_metrics_by_logs(
+                algorithms=[algorithm],
+                evaluator_functions=[
+                    f1_tool_evaluator,
+                    f1_tool_evaluator_strict,
+                    f1_tool_evaluator_arguments_similarity
+                ],
+                reference=reference,
+                logger=logger,
+                logs_path=logs_path,
+                subdirectory=subdirectory,
+                iteration=iteration,
+                normalize=False,
+            )
+
+            Statistics.print_statistics(statistics)
 
     @staticmethod
     def __init_algorithm(name: AlgorithmName) -> Dialogue:
@@ -299,9 +362,9 @@ class Runner:
 
     @staticmethod
     def build_graph(
-        graph_types: list[type[GraphBuilder]],
-        directories: list[Path | str],
-        normalize: bool = False,
+            graph_types: list[type[GraphBuilder]],
+            directories: list[Path | str],
+            normalize: bool = False,
     ) -> None:
         path = Path(LOGS_PATH)
         if not path.exists():
@@ -345,14 +408,15 @@ class Runner:
             Statistics.print_statistics(stats)
 
         for graph in graph_types:
-            f1_algs = [alg for alg in algs if alg.metric == MetricType.F1_TOOL]
-            f1_strict = [alg for alg in algs if alg.metric != MetricType.F1_TOOL]
+            f1_nonstrict = [alg for alg in algs if alg.metric == MetricType.F1_TOOL]
+            f1_arguments_similarity = [alg for alg in algs if alg.metric == MetricType.F1_TOOL_ARGUMENTS_SIMILARITY]
+            f1_strict = [alg for alg in algs if alg.metric == MetricType.F1_TOOL_STRICT]
 
             graphs_dir = path / "graphs"
             graphs_dir.mkdir(parents=True, exist_ok=True)
 
             graph.build(
-                StatisticsDto(algorithms=f1_algs),
+                StatisticsDto(algorithms=f1_nonstrict),
                 str(graphs_dir / f"{graph.__name__}_nonstrict.png"),
                 "nonstrict",
             )
@@ -360,6 +424,11 @@ class Runner:
                 StatisticsDto(algorithms=f1_strict),
                 str(graphs_dir / f"{graph.__name__}_strict.png"),
                 "strict",
+            )
+            graph.build(
+                StatisticsDto(algorithms=f1_arguments_similarity),
+                str(graphs_dir / f"{graph.__name__}_strict.png"),
+                "arguments_similarity",
             )
 
     def __prepare_system_prompt(self) -> str:
@@ -374,14 +443,47 @@ class Runner:
         return len(tokens)
 
 
+def _build_arg_parser() -> argparse.ArgumentParser:
+    parser = argparse.ArgumentParser(description="Tool-plan benchmarking runner")
+    parser.add_argument(
+        "name",
+        help=f"Algorithm name. Allowed: {[a.value for a in AlgorithmName]}",
+    )
+    parser.add_argument(
+        "--eval-by-logs",
+        action="store_true",
+        help="Do not run algorithms; instead, append newly-added metrics by re-evaluating saved logs in-place.",
+    )
+    parser.add_argument(
+        "--logs-path",
+        default=str(LOGS_PATH),
+        help="Root directory with logs (default: env LOGS_PATH or tool default).",
+    )
+    parser.add_argument(
+        "--iteration",
+        type=int,
+        default=None,
+        help="If set, evaluates only the newest log file with this iteration value.",
+    )
+    return parser
+
+
 if __name__ == "__main__":
     configure_logs(loglevel=logging.INFO)
 
-    runner = Runner()
-    runner.run(sys.argv[1])
+    """args = _build_arg_parser().parse_args()
 
-    Runner.build_graph(
-        [BoxPlot],
+    runner = Runner()
+    if args.eval_by_logs:
+        runner.evaluate_by_logs(args.name, logs_path=args.logs_path, iteration=args.iteration)
+    else:
+        runner.run(args.name)"""
+    runner = Runner()
+    runner.run(AlgorithmName.BASE_RECSUM.value)
+    #runner.evaluate_by_logs(AlgorithmName.BASE_RECSUM.value)
+
+    """Runner.build_graph(
+        [GeneralTrends],
         [
             AlgorithmDirectory.FULL_BASELINE.value,
             AlgorithmDirectory.LAST_BASELINE.value,
@@ -394,4 +496,4 @@ if __name__ == "__main__":
             AlgorithmDirectory.SHORT_TOOLS.value,
         ],
         normalize=False,
-    )
+    )"""

@@ -1,24 +1,26 @@
-import json
-import os
-
 from datetime import datetime
 from pathlib import Path
 
+from typing_extensions import override
+
 from src.algorithms.summarize_algorithms.core.models import DialogueState, Session
 from src.benchmark.logger.base_logger import BaseLogger
-from src.benchmark.models.dtos import MemoryRecord, MetricState
+from src.benchmark.models.dtos import BaseRecord, MemoryRecord, MetricState
+from src.benchmark.utils.json_log_utils import JsonLogUtils
 
 
 class MemoryLogger(BaseLogger):
+    @override
     def log_iteration(
-            self,
-            system_name: str,
-            query: str,
-            iteration: int,
-            sessions: list[Session],
-            state: DialogueState,
-            subdirectory: Path,
-            metrics: list[MetricState] | None = None,
+        self,
+        system_name: str,
+        query: str,
+        iteration: int,
+        sessions: list[Session],
+        state: DialogueState,
+        subdirectory: Path,
+        metrics: list[MetricState] | None = None,
+        save: bool = True,
     ) -> MemoryRecord:
         self.logger.info(f"Logging iteration {iteration} to {self.log_dir}")
 
@@ -36,27 +38,35 @@ class MemoryLogger(BaseLogger):
             "prepared_messages": [s.model_dump(mode="json") for s in state.prepared_messages],
         }
 
-        if metrics is not None:
-            metrics_dict = [
-                {"metric_name": metric.metric_name.value, "metric_value": metric.metric_value}
-                for metric in metrics
-            ]
-            record["metric"] = metrics_dict
-
-        if subdirectory is not None:
-            directory: Path = self.log_dir / subdirectory
-            os.makedirs(directory, exist_ok=True)
-        else:
-            directory = self.log_dir
-
-        with open(
-                directory / (system_name + "-" + str(record["timestamp"]) + ".json"),
-                "a",
-                encoding="utf-8"
-        ) as f:
-            f.write(json.dumps(record, ensure_ascii=False, indent=4))
-            f.write("\n")
-
-        self.logger.info(f"Saved successfully iteration {iteration} to {self.log_dir}")
+        if save:
+            self._prepare_and_save_log(record, subdirectory, system_name, iteration, metrics)
 
         return MemoryRecord.from_dict(record)
+
+    @override
+    def fetch_logs(
+        self,
+        system_names: list[str],
+        subdirectory: Path,
+    ) -> list[BaseRecord]:
+        """Load saved benchmark log records.
+
+        Logs are expected under:
+        `<self.log_dir>/<system_name>/<subdirectory>/*.json`.
+
+        Returns records parsed via `MemoryRecord.from_dict()`.
+        """
+        records: list[BaseRecord] = []
+        for system_name in system_names:
+            directory = self.log_dir / system_name / subdirectory
+            if not directory.exists():
+                continue
+
+            for path in sorted(directory.glob("*.json")):
+                for payload in JsonLogUtils.load_log_payloads(path):
+                    if payload.get("memory") is None:
+                        records.append(BaseRecord.from_dict(payload))
+                    else:
+                        records.append(MemoryRecord.from_dict(payload))
+
+        return records

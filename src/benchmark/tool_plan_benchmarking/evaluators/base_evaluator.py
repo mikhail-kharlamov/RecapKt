@@ -6,6 +6,7 @@ from src.algorithms.summarize_algorithms.core.models import (
     Session,
 )
 from src.benchmark.models.dtos import MetricState
+from src.utils.semantic_similarity import SemanticSimilarity
 
 
 class BaseEvaluator(ABC):
@@ -14,6 +15,7 @@ class BaseEvaluator(ABC):
     """
     def __init__(self, mode: str | None = None):
         self._mode = mode
+        self._similarity: SemanticSimilarity | None = None
 
     @abstractmethod
     def evaluate(

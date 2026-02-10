@@ -1,3 +1,5 @@
+import json
+
 from dataclasses import dataclass
 from typing import Any
 
@@ -26,6 +28,20 @@ class SemanticSimilarity:
         self.batch_size = batch_size
         self.tokenizer = tiktoken.get_encoding("cl100k_base")
         self.use_tokenizer = use_tokenizer
+
+    @staticmethod
+    def _to_text(value: Any) -> str:
+        """Convert arbitrary JSON-ish values to text for embedding."""
+        if value is None:
+            return ""
+        if isinstance(value, str):
+            return value
+        if isinstance(value, (int, float, bool)):
+            return str(value)
+        try:
+            return json.dumps(value, ensure_ascii=False, sort_keys=True)
+        except TypeError:
+            return str(value)
 
     def _tokenize(self, text: str) -> np.ndarray:
         if not text or not text.strip():
@@ -83,3 +99,36 @@ class SemanticSimilarity:
         return SemanticSimilarityResult(
             precision=float(precision), recall=float(recall), f1=float(f1)
         )
+
+    def calculate(self, sentence_a: str, sentence_b: str) -> float:
+        """Embed two sentences and return their cosine similarity."""
+
+        sentence_a = sentence_a.strip()
+        sentence_b = sentence_b.strip()
+        if not sentence_a or not sentence_b:
+            raise ValueError("Sentences must be non-empty.")
+
+        vecs = self.embeddings.embed_documents([sentence_a, sentence_b])
+        vec_a = np.asarray(vecs[0], dtype=float).reshape(1, -1)
+        vec_b = np.asarray(vecs[1], dtype=float).reshape(1, -1)
+        return float(cosine_similarity(vec_a, vec_b)[0][0])
+
+    def compare_json(self, json_a: dict[str, Any], json_b: dict[str, Any]) -> float:
+        """Compare two JSON objects and return the average similarity score.
+
+        Values are coerced to text via `_to_text()` before embedding.
+        """
+
+        common_keys = set(json_a.keys()).intersection(set(json_b.keys()))
+        if not common_keys:
+            return 0.0
+
+        similarities: list[float] = []
+        for key in common_keys:
+            similarity = self.calculate(
+                self._to_text(json_a[key]),
+                self._to_text(json_b[key]),
+            )
+            similarities.append(similarity)
+
+        return float(np.mean(similarities))

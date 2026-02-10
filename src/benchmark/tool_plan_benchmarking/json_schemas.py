@@ -38,7 +38,7 @@ PLAN_SCHEMA = {
         "required": ["id", "kind", "name", "description", "depends_on"],
         "properties": {
           "id": { "type": "string", "pattern": "^s[0-9]+$" },
-          "kind": { "type": "string", "enum": ["tool_call", "action", "final_answer"] },
+          "kind": { "type": "string", "enum": ["tool_call", "final_answer"] },
           "name": { "type": "string" },
           "description": { "type": "string" },
           "depends_on": {
