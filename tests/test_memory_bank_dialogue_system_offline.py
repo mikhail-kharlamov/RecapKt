@@ -17,7 +17,7 @@ from src.algorithms.summarize_algorithms.core.response_generator import (
 from src.algorithms.summarize_algorithms.memory_bank.dialogue_system import (
     MemoryBankDialogueSystem,
 )
-from src.benchmark.tool_plan_benchmarking.json_schemas import PLAN_SCHEMA
+from src.benchmark.tool_plan_benchmarking.tools_and_schemas.parsed_jsons import PLAN_SCHEMA
 
 
 class FakeEmbeddings(Embeddings):

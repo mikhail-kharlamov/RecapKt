@@ -18,7 +18,7 @@ class DividedSession:
 @dataclass
 class MetricState:
     metric_name: MetricType
-    metric_value: float | int
+    metric_value: float | int | bool | Decimal
 
 
 @dataclass

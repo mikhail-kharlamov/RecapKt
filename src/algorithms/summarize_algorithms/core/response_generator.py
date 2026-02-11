@@ -14,6 +14,7 @@ from langchain_core.output_parsers import StrOutputParser
 from langchain_core.runnables import Runnable
 
 from src.algorithms.summarize_algorithms.core.models import ResponseContext, Session
+from src.benchmark.tool_plan_benchmarking.tools_and_schemas.parsed_jsons import TOOLS
 from src.utils.system_prompt_builder import MemorySections, SystemPromptBuilder
 
 
@@ -179,6 +180,7 @@ class ResponseGenerator:
         """
         system_prompt_text = self._prompt_builder.build(
             schema=self._structure,
+            tools=TOOLS,
             memory=memory,
             memory_mode=self._infer_memory_mode(memory),
         )

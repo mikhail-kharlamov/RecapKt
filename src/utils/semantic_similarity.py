@@ -119,7 +119,7 @@ class SemanticSimilarity:
         Values are coerced to text via `_to_text()` before embedding.
         """
 
-        common_keys = set(json_a.keys()).intersection(set(json_b.keys()))
+        common_keys = set(json_a.keys()).intersection(set(json_b.keys())) #TODO only common keys??
         if not common_keys:
             return 0.0
 
@@ -129,6 +129,8 @@ class SemanticSimilarity:
                 self._to_text(json_a[key]),
                 self._to_text(json_b[key]),
             )
+            if similarity >= 0.7:
+                print("yes")
             similarities.append(similarity)
 
         return float(np.mean(similarities))

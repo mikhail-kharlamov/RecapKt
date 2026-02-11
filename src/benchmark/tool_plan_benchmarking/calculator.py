@@ -13,7 +13,7 @@ from src.algorithms.summarize_algorithms.core.models import (
 from src.benchmark.logger.base_logger import BaseLogger
 from src.benchmark.models.dtos import BaseRecord, MemoryRecord, MetricState
 from src.benchmark.tool_plan_benchmarking.evaluators.base_evaluator import BaseEvaluator
-from src.benchmark.tool_plan_benchmarking.json_schemas import PLAN_SCHEMA
+from src.benchmark.tool_plan_benchmarking.tools_and_schemas.parsed_jsons import PLAN_SCHEMA
 
 
 class Calculator:
@@ -125,7 +125,7 @@ class Calculator:
 
                 for metric in algorithm_metrics:
                     if metric.metric_name in existing_metric_names:
-                        continue
+                        log.metric.pop(log.metric.index(metric))
                     log.metric.append(metric)
                     existing_metric_names.add(metric.metric_name)
 

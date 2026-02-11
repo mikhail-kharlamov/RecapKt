@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from datetime import datetime
+from decimal import Decimal
 
 from src.benchmark.models.dtos import BaseRecord, MetricState
 from src.benchmark.models.enums import MetricType
@@ -24,8 +25,8 @@ def _make_record(system: str, sessions_count: int, f1: float, strict: float) -> 
         sessions=sessions,
         prepared_messages=[],
         metric=[
-            MetricState(metric_name=MetricType.F1_TOOL, metric_value=f1),
-            MetricState(metric_name=MetricType.F1_TOOL_STRICT, metric_value=strict),
+            MetricState(metric_name=MetricType.F1_TOOL, metric_value=Decimal(str(f1))),
+            MetricState(metric_name=MetricType.F1_TOOL_STRICT, metric_value=Decimal(str(strict))),
         ],
     )
 

@@ -33,6 +33,7 @@ class SystemPromptBuilder:
             self,
             *,
             schema: dict[str, Any] | None,
+            tools: list[dict[str, Any]] | None,
             memory: MemorySections,
             memory_mode: str,
             examples: str = "",
@@ -47,6 +48,7 @@ class SystemPromptBuilder:
         4) bridge_to_conversation.j2
 
         :param schema: JSON schema for model output (structured output).
+        :param tools: JSON tools for tool-calling.
         :param memory: optional memory sections.
         :param memory_mode: "baseline" or "memory" (affects MemoryArtifacts description).
         :param examples: optional examples block.
@@ -62,8 +64,10 @@ class SystemPromptBuilder:
         ).strip()
 
         schema_json = json.dumps(schema or {}, ensure_ascii=False, indent=4)
+        tools_json = json.dumps(tools or {}, ensure_ascii=False, indent=4)
 
         schema_and_tool = self._env.get_template("schema_and_tool.j2").render(
+            tools=tools_json,
             schema_json=schema_json,
             memory_mode=memory_mode,
             examples=examples,

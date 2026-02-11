@@ -1,3 +1,4 @@
+import json
 import logging
 import os
 
@@ -13,7 +14,7 @@ from langchain_core.messages import (
     BaseMessage,
     SystemMessage,
     ToolMessage,
-    trim_messages,
+    trim_messages, AIMessage,
 )
 from langchain_core.output_parsers import StrOutputParser
 from langchain_core.runnables import Runnable
@@ -35,6 +36,7 @@ from src.algorithms.summarize_algorithms.core.models import (
     Session,
 )
 from src.benchmark.logger.baseline_logger import BaselineLogger
+from src.benchmark.tool_plan_benchmarking.tools_and_schemas.parsed_jsons import TOOLS
 from src.utils.system_prompt_builder import MemorySections, SystemPromptBuilder
 
 
@@ -213,6 +215,7 @@ class DialogueBaseline(Dialogue):
 
         system_instruction = self._prompt_builder.build(
             schema=structure,
+            tools=TOOLS,
             memory=MemorySections(),
             memory_mode="baseline",
         )

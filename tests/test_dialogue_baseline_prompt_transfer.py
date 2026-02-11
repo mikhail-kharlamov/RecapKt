@@ -14,7 +14,7 @@ from src.algorithms.summarize_algorithms.core.models import BaseBlock, Session
 from src.algorithms.summarize_algorithms.core.response_generator import (
     ResponseGenerator,
 )
-from src.benchmark.tool_plan_benchmarking.json_schemas import PLAN_SCHEMA
+from src.benchmark.tool_plan_benchmarking.tools_and_schemas.parsed_jsons import PLAN_SCHEMA, TOOLS
 from src.utils.system_prompt_builder import MemorySections, SystemPromptBuilder
 
 
@@ -87,8 +87,9 @@ def test_dialogue_baseline_transfers_full_prompt_as_message_list(monkeypatch: py
 
     expected_system = baseline._prompt_builder.build(
         schema=PLAN_SCHEMA,
+        tools=TOOLS,
         memory=MemorySections(),
-        memory_mode="baseline"
+        memory_mode="baseline",
     )
     assert capture.messages[0].content == expected_system
 

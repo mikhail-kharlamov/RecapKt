@@ -74,7 +74,8 @@ class JsonLogUtils:
         if isinstance(obj, Enum):
             return obj.value
         if isinstance(obj, Decimal):
-            return float(obj)
+            # Preserve precision in logs; values are read back as JSON numbers.
+            return str(obj)
         if isinstance(obj, Path):
             return str(obj)
         if is_dataclass(obj):

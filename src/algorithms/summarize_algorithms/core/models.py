@@ -1,12 +1,11 @@
 import json
 import logging
-
 from collections.abc import Iterator
 from dataclasses import dataclass, field
 from enum import Enum
 from typing import Any
 
-from dataclasses_json import dataclass_json
+from dataclasses_json import dataclass_json, DataClassJsonMixin
 from langchain_core.messages import (
     AIMessage,
     BaseMessage,
@@ -34,7 +33,7 @@ class LocalModels(Enum):
 
 
 @dataclass
-class BaseBlock:
+class BaseBlock(DataClassJsonMixin):
     """A single message block in a `Session` (role + textual content)."""
     role: str
     content: str
@@ -129,8 +128,8 @@ class Session:
                     ai_tool_call = {
                         "name": msg.name,
                         "args": json.loads(msg.arguments)
-                                if isinstance(msg.arguments, str) and msg.arguments != ""
-                                else {},
+                        if isinstance(msg.arguments, str) and msg.arguments != ""
+                        else {},
                         "id": msg.id
                     }
                 except json.decoder.JSONDecodeError as e:
@@ -250,6 +249,7 @@ class UpdateState(Enum):
     """Routing values used by `should_continue_memory_update` to control the graph loop."""
     CONTINUE_UPDATE = "continue_update"
     FINISH_UPDATE = "finish_update"
+
 
 @dataclass_json
 @dataclass

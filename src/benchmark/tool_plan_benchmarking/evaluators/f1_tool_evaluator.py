@@ -1,6 +1,7 @@
 import json
 
-from typing import Any, Callable
+from decimal import Decimal
+from typing import Any
 
 from src.algorithms.summarize_algorithms.core.models import (
     BaseBlock,
@@ -10,162 +11,159 @@ from src.algorithms.summarize_algorithms.core.models import (
 )
 from src.benchmark.models.dtos import MetricState
 from src.benchmark.models.enums import MetricType
-from src.utils.semantic_similarity import SemanticSimilarity
 from src.benchmark.tool_plan_benchmarking.evaluators.base_evaluator import BaseEvaluator
+from src.utils.semantic_similarity import SemanticSimilarity
 
 
 class F1ToolEvaluator(BaseEvaluator):
-    """Compute F1 between predicted tool calls and reference tool calls.
+    """
+    Computes F1 between tools predicted by the model and tools used in a reference trace.
 
     The model is expected to return a structured response with a `plan_steps` list where tool calls are represented
     as entries with `kind == "tool_call"`.
 
     Modes:
-    - default/"simple"/any other: compare only tool names
-    - "strict": compare tool name + exact JSON arguments
-    - "arguments_similarity": compare tool name + semantic similarity of JSON arguments
-
-    Note: the implementation intentionally evaluates *all predicted* tool calls; it does not pre-filter predictions by
-    whether they match the reference.
+    - default: compares only tool names
+    - "strict": compares tool names + exact JSON arguments
     """
 
-    _ARGUMENTS_SIMILARITY_THRESHOLD: float = 0.7
-
     def evaluate(
-        self,
-        sessions: list[Session],
-        query: str,
-        state: DialogueState,
-        reference: list[BaseBlock] | None = None,
+            self,
+            sessions: list[Session],
+            query: str,
+            state: DialogueState,
+            reference: list[BaseBlock] | None = None,
     ) -> MetricState:
+        """
+        Compute the F1 score for tool selection against a reference trace.
+
+        :param sessions: previous sessions (unused here, but part of the evaluator interface).
+        :param query: the evaluated user query.
+        :param state: algorithm output state containing the model response.
+        :param reference: reference blocks containing expected tool calls.
+        :return: MetricState: metric name and computed value.
+        """
         if reference is None:
             raise ValueError("Reference is required for F1 Tool evaluation.")
 
         if isinstance(state.response, str):
             raise ValueError("State response must be a structured object (dict), not a string.")
 
-        ref_tool_blocks = [r for r in reference if isinstance(r, ToolCallBlock)]
-        predicted_steps = [
-            step
-            for step in state.response.get("plan_steps", [])
-            if isinstance(step, dict) and step.get("kind") == "tool_call"
-        ]
+        reference_tools: set[str] = {
+            tool.name
+            for tool in reference
+            if isinstance(tool, ToolCallBlock)
+        }
+
+        plan_steps = state.response.get("plan_steps", [])
 
         if self._mode == "strict":
+            predicted_tools = F1ToolEvaluator._get_strict_matches(plan_steps, reference)
             metric_type = MetricType.F1_TOOL_STRICT
-            predicted_items = {self._canonical_tool_call(step.get("name", ""), step.get("args", {})) for step in predicted_steps}
-            reference_items = {self._canonical_tool_call(r.name, json.loads(r.arguments)) for r in ref_tool_blocks}
-
         elif self._mode == "arguments_similarity":
+            predicted_tools = F1ToolEvaluator._get_strict_matches(plan_steps, reference)
             metric_type = MetricType.F1_TOOL_ARGUMENTS_SIMILARITY
-            tp, fp, fn = self._calculate_similarity_counts(predicted_steps, ref_tool_blocks)
-            return MetricState(metric_name=metric_type, metric_value=self._calculate_f1(tp, fp, fn))
-
         else:
+            predicted_tools = F1ToolEvaluator._get_simple_matches(plan_steps)
             metric_type = MetricType.F1_TOOL
-            predicted_items = {str(step.get("name", "")).lower() for step in predicted_steps}
-            reference_items = {r.name.lower() for r in ref_tool_blocks}
 
-        true_positives = len(predicted_items.intersection(reference_items))
-        false_positives = len(predicted_items.difference(reference_items))
-        false_negatives = len(reference_items.difference(predicted_items))
+        true_positives = len(predicted_tools.intersection(reference_tools))
+        false_positives = len(predicted_tools.difference(reference_tools))
+        false_negatives = len(reference_tools.difference(predicted_tools))
+
+        f1_score = F1ToolEvaluator._calculate_f1(true_positives, false_positives, false_negatives)
 
         return MetricState(
             metric_name=metric_type,
-            metric_value=self._calculate_f1(true_positives, false_positives, false_negatives),
+            metric_value=f1_score
         )
 
-    def _calculate_similarity_counts(
-        self,
-        predicted_steps: list[dict[str, Any]],
-        reference_tools: list[ToolCallBlock],
-    ) -> tuple[int, int, int]:
-        """Compute TP/FP/FN using semantic similarity of arguments.
+    @staticmethod
+    def _get_simple_matches(plan_steps: list[dict[str, Any]]) -> set[str]:
+        return {
+            step.get("name", "")
+            for step in plan_steps
+            if step.get("kind") == "tool_call"
+        }
 
-        A prediction is a TP if there exists an unmatched reference tool call with the same name and args similarity
-        >= threshold. Remaining predictions are FP; remaining references are FN.
-        """
-        if self._similarity is None:
-            self._similarity = SemanticSimilarity()
+    @staticmethod
+    def _get_strict_matches(
+            plan_steps: list[dict[str, Any]],
+            reference: list[BaseBlock]
+    ) -> set[str]:
+        matches = set()
 
-        matched_ref: set[int] = set()
-        tp = 0
-        fp = 0
+        ref_tool_blocks = [r for r in reference if isinstance(r, ToolCallBlock)]
 
-        for step in predicted_steps:
-            step_name = str(step.get("name", "")).lower()
+        for step in plan_steps:
+            if step.get("kind") != "tool_call":
+                continue
+
+            step_name = step.get("name", "")
             step_args = step.get("args", {})
 
-            best_ref_idx: int | None = None
-            best_score = 0.0
+            is_match = any(
+                r.name.lower() == step_name and
+                F1ToolEvaluator._compare_arguments(step_args, json.loads(r.arguments))
+                for r in ref_tool_blocks
+            )
 
-            for idx, ref in enumerate(reference_tools):
-                if idx in matched_ref:
-                    continue
-                if ref.name.lower() != step_name:
-                    continue
+            if is_match:
+                matches.add(f"{step_name}|{step_args}")
 
-                try:
-                    ref_args = json.loads(ref.arguments)
-                except json.JSONDecodeError:
-                    ref_args = {}
-
-                score = self._similarity.compare_json(step_args, ref_args)
-                if score > best_score:
-                    best_score = score
-                    best_ref_idx = idx
-
-            if best_ref_idx is not None and best_score >= self._ARGUMENTS_SIMILARITY_THRESHOLD:
-                matched_ref.add(best_ref_idx)
-                tp += 1
-            else:
-                fp += 1
-
-        fn = len(reference_tools) - len(matched_ref)
-        return tp, fp, fn
+        return matches
 
     @staticmethod
-    def _canonical_tool_call(name: str, args: Any) -> str:
-        """Canonical string representation for strict comparisons."""
-        try:
-            args_str = json.dumps(args, sort_keys=True, ensure_ascii=False)
-        except TypeError:
-            args_str = json.dumps({}, sort_keys=True, ensure_ascii=False)
-        return f"{name.lower()}|{args_str}"
+    def _get_args_similarity_matches(
+            plan_steps: list[dict[str, Any]],
+            reference: list[BaseBlock]
+    ) -> set[str]:
+        arguments_similarity_threshold: float = 0.7
 
-    def _arguments_semantic_step_compare(self, step: dict[str, Any], ref_tool_block: ToolCallBlock) -> bool:
-        step_name = step.get("name", "")
-        step_args = step.get("args", {})
+        similarity = SemanticSimilarity() #TODO refactor it
+        matches: set[str] = set()
 
-        if self._similarity is None:
-            self._similarity = SemanticSimilarity()
+        for step in plan_steps:
+            if step.get("kind") != "tool_call":
+                continue
 
-        return ref_tool_block.name.lower() == step_name and self._similarity.compare_json(
-            step_args,
-            json.loads(ref_tool_block.arguments)
-        ) >= self._ARGUMENTS_SIMILARITY_THRESHOLD
+            step_name = str(step.get("name", "")).strip()
+            step_args = step.get("args", {})
+            if not step_name:
+                continue
 
-    @staticmethod
-    def _simple_step_compare(step: dict[str, Any], ref_tool_block: ToolCallBlock) -> bool:
-        step_name = step.get("name", "")
-        return ref_tool_block.name.lower() == step_name
+            for block in reference:
+                if isinstance(block, ToolCallBlock):
+                    if block.name.lower() == step_name.lower():
+                        score = similarity.compare_json(
+                            json.loads(block.arguments),
+                            step_args
+                        )
+                        if score >= arguments_similarity_threshold:
+                            matches.add(f"{step_name}|{step_args}")
 
-    @staticmethod
-    def _strict_step_compare(step: dict[str, Any], ref_tool_block: ToolCallBlock) -> bool:
-        step_name = step.get("name", "")
-        step_args = step.get("args", {})
-
-        return ref_tool_block.name.lower() == step_name and step_args == json.loads(ref_tool_block.arguments)
+        return matches
 
     @staticmethod
-    def _calculate_f1(tp: int, fp: int, fn: int) -> float:
+    def _calculate_f1(tp: int, fp: int, fn: int) -> Decimal:
+        """Compute F1 as an exact `Decimal`.
+
+        Using Decimal avoids accumulating float rounding errors in downstream pipelines and is consistent with other
+        benchmark DTOs that already allow `Decimal` metric values.
+        """
+        zero = Decimal("0")
         if tp == 0:
-            return 0.0
+            return zero
 
-        precision = tp / (tp + fp)
-        recall = tp / (tp + fn)
+        tp_d = Decimal(tp)
+        precision = tp_d / Decimal(tp + fp)
+        recall = tp_d / Decimal(tp + fn)
 
-        if precision + recall == 0:
-            return 0.0
+        if precision + recall == zero:
+            return zero
 
-        return 2 * (precision * recall) / (precision + recall)
+        return Decimal(2) * (precision * recall) / (precision + recall)
+
+    @staticmethod
+    def _compare_arguments(args1: dict[str, Any], args2: dict[str, Any]) -> bool:
+        return args1 == args2

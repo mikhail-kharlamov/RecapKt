@@ -1,8 +1,8 @@
-PLAN_SCHEMA = {
+{
   "title": "ActionPlan",
   "description": "Schema for the structured action plan output from the simple_algorithms",
   "type": "object",
-  "additionalProperties": False,
+  "additionalProperties": false,
   "required": ["version", "user_request", "memory_used", "assumptions", "plan_steps"],
   "properties": {
     "version": { "type": "string", "enum": ["1.0"] },
@@ -12,7 +12,7 @@ PLAN_SCHEMA = {
       "type": "array",
       "items": {
         "type": "object",
-        "additionalProperties": False,
+        "additionalProperties": false,
         "required": ["source", "key", "excerpt"],
         "properties": {
           "source": { "type": "string", "enum": ["session", "memory_bank", "tool_result", "note"] },
@@ -34,7 +34,7 @@ PLAN_SCHEMA = {
       "minItems": 1,
       "items": {
         "type": "object",
-        "additionalProperties": False,
+        "additionalProperties": false,
         "required": ["id", "kind", "name", "description", "depends_on"],
         "properties": {
           "id": { "type": "string", "pattern": "^s[0-9]+$" },
@@ -50,7 +50,7 @@ PLAN_SCHEMA = {
           "args": {
             "type": "object",
             "description": "For kind=tool_call only. Omit for other kinds.",
-            "additionalProperties": True
+            "additionalProperties": true
           },
           "answer_template": {
             "type": "string",

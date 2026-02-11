@@ -32,13 +32,12 @@ from src.benchmark.models.dtos import (
     MemoryRecord,
     TokenInfo,
 )
-from src.benchmark.models.enums import AlgorithmDirectory, AlgorithmName, MetricType
+from src.benchmark.models.enums import AlgorithmName, MetricType, AlgorithmDirectory
 from src.benchmark.tool_plan_benchmarking.evaluators.f1_tool_evaluator import (
     F1ToolEvaluator,
 )
 from src.benchmark.tool_plan_benchmarking.graphs.general_trends import GeneralTrends
 from src.benchmark.tool_plan_benchmarking.graphs.graph_builder import GraphBuilder
-from src.benchmark.tool_plan_benchmarking.graphs.trends_with_quantiles import TrendsWithQuantiles
 from src.benchmark.tool_plan_benchmarking.load_session import Loader
 from src.benchmark.tool_plan_benchmarking.statistics.dtos import (
     AlgorithmStatistics,
@@ -471,18 +470,15 @@ def _build_arg_parser() -> argparse.ArgumentParser:
 if __name__ == "__main__":
     configure_logs(loglevel=logging.INFO)
 
-    """args = _build_arg_parser().parse_args()
+    args = _build_arg_parser().parse_args()
 
     runner = Runner()
     if args.eval_by_logs:
         runner.evaluate_by_logs(args.name, logs_path=args.logs_path, iteration=args.iteration)
     else:
-        runner.run(args.name)"""
-    runner = Runner()
-    runner.run(AlgorithmName.BASE_RECSUM.value)
-    #runner.evaluate_by_logs(AlgorithmName.BASE_RECSUM.value)
+        runner.run(args.name)
 
-    """Runner.build_graph(
+    Runner.build_graph(
         [GeneralTrends],
         [
             AlgorithmDirectory.FULL_BASELINE.value,
@@ -496,4 +492,4 @@ if __name__ == "__main__":
             AlgorithmDirectory.SHORT_TOOLS.value,
         ],
         normalize=False,
-    )"""
+    )

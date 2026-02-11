@@ -16,7 +16,7 @@ from src.utils.system_prompt_builder import MemorySections
 
 
 def update_memory_node(
-    summarizer_instance: BaseSummarizer, state: MemoryDialogueState
+        summarizer_instance: BaseSummarizer, state: MemoryDialogueState
 ) -> MemoryDialogueState:
     current_dialogue_session = state.dialogue_sessions[state.current_session_index]
 
@@ -55,8 +55,8 @@ def update_memory_node(
 
 
 def generate_response_node(
-    response_generator_instance: ResponseGenerator,
-    state: MemoryDialogueState
+        response_generator_instance: ResponseGenerator,
+        state: MemoryDialogueState
 ) -> MemoryDialogueState:
     if isinstance(state, RecsumDialogueState):
         text_memory = state.latest_memory

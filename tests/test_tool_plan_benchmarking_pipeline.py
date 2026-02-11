@@ -62,6 +62,7 @@ def test_calculator_end_to_end_logs_metrics(tmp_path: Path) -> None:
         algorithms=[algo],
         evaluator_functions=[evaluator_strict],
         reference=reference,
+        logger=logger,
         logs_path=tmp_path,
         subdirectory=Path("sub"),
         iteration=1,

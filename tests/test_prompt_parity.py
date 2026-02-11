@@ -13,7 +13,7 @@ from src.algorithms.simple_algorithms.dialogue_baseline import DialogueBaseline
 from src.algorithms.summarize_algorithms.core.response_generator import (
     ResponseGenerator,
 )
-from src.benchmark.tool_plan_benchmarking.json_schemas import PLAN_SCHEMA
+from src.benchmark.tool_plan_benchmarking.tools_and_schemas.parsed_jsons import PLAN_SCHEMA, TOOLS
 from src.utils.system_prompt_builder import MemorySections
 
 
@@ -64,6 +64,7 @@ def test_response_generator_system_prompt_matches_baseline(fake_llm: MagicMock) 
     baseline = _make_simple_baseline(fake_llm)
     baseline_system = baseline._prompt_builder.build(
         schema=PLAN_SCHEMA,
+        tools=TOOLS,
         memory=MemorySections(),
         memory_mode="baseline",
     )

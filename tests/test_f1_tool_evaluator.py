@@ -2,6 +2,8 @@ from __future__ import annotations
 
 import json
 
+from decimal import Decimal
+
 import pytest
 
 from src.algorithms.summarize_algorithms.core.models import (
@@ -58,7 +60,7 @@ def test_f1_simple_counts_tool_names() -> None:
 
     assert metric.metric_name == MetricType.F1_TOOL
     # predicted={list_dir,read_file}, reference={read_file,search_for_text} => tp=1 fp=1 fn=1 => f1=0.5
-    assert metric.metric_value == pytest.approx(0.5)
+    assert metric.metric_value == Decimal("0.5")
 
 
 def test_f1_strict_requires_args_match() -> None:
@@ -69,4 +71,4 @@ def test_f1_strict_requires_args_match() -> None:
     metric = evaluator.evaluate([Session([])], "q", state, ref)
 
     assert metric.metric_name == MetricType.F1_TOOL_STRICT
-    assert metric.metric_value == 0.0
+    assert metric.metric_value == Decimal("0")
