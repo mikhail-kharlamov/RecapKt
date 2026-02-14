@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import os
 from abc import abstractmethod
-from typing import Any, Generic, TypeVar
+from typing import Any
 
 from dotenv import load_dotenv
 from langchain_core.language_models import BaseChatModel
@@ -10,25 +10,14 @@ from langchain_core.messages import BaseMessage, HumanMessage, SystemMessage
 from langchain_openai import ChatOpenAI
 from pydantic import BaseModel, SecretStr
 
-from src.algorithms.summarize_algorithms.core.models import (
-    BaseBlock,
-    DialogueState,
-    OpenAIModels,
-    Session,
-)
+from src.algorithms.summarize_algorithms.core.models import BaseBlock, DialogueState, OpenAIModels, Session
 from src.benchmark.models.dtos import MetricState
 from src.benchmark.tool_plan_benchmarking.evaluators.base_evaluator import BaseEvaluator
 from src.utils.system_prompt_builder import MemorySections, SystemPromptBuilder
 
 
-SingleResultType = TypeVar("SingleResultType", bound=BaseModel)
-PairwiseResultType = TypeVar("PairwiseResultType", bound=BaseModel)
-
-
-class LLMAsAJudgeBaseEvaluator[SingleResultType, PairwiseResultType](BaseEvaluator):
+class LLMAsAJudgeBaseEvaluator(BaseEvaluator):
     """Base class for evaluators that delegate metric computation to an LLM "judge"."""
-
-    _MEMORY_MODE: str = "baseline"
 
     def __init__(
         self,
@@ -56,23 +45,16 @@ class LLMAsAJudgeBaseEvaluator[SingleResultType, PairwiseResultType](BaseEvaluat
         self._system_message = SystemMessage(content=self._build_system_prompt())
 
     def _build_system_prompt(self) -> str:
-        """Build a unified system prompt for the judge.
-
-        We intentionally don't pass any tools/schema here: the judge is expected to respond with structured output
-        enforced by `with_structured_output(...)`, and it should not call tools.
-
-        Subclasses may inject additional judging instructions via `_get_judge_examples()`.
-        """
+        """Build a unified system prompt for the judge."""
         return self._prompt_builder.build(
             schema=None,
             tools=None,
             memory=MemorySections(),
-            memory_mode=self._MEMORY_MODE,
+            memory_mode="baseline",
             examples=self._get_judge_examples(),
         )
 
     def _get_judge_examples(self) -> str:
-        """Optional extra system-level instructions/examples for the judge."""
         return ""
 
     @abstractmethod
@@ -84,28 +66,25 @@ class LLMAsAJudgeBaseEvaluator[SingleResultType, PairwiseResultType](BaseEvaluat
         """Render the HumanMessage content for a pairwise evaluation."""
 
     @abstractmethod
-    def _get_single_result_model(self) -> type[SingleResultType]:
-        """Pydantic model for the single-option judging result."""
+    def _get_single_result_model(self) -> type[BaseModel]:
+        """Structured output model for single-option evaluation."""
 
     @abstractmethod
-    def _get_pairwise_result_model(self) -> type[PairwiseResultType]:
-        """Pydantic model for the pairwise judging result."""
+    def _get_pairwise_result_model(self) -> type[BaseModel]:
+        """Structured output model for pairwise evaluation."""
 
-    def _invoke_single(self, params: dict[str, Any]) -> SingleResultType:
-        chain = self.llm.with_structured_output(self._get_single_result_model())
-        messages: list[BaseMessage] = [
-            self._system_message,
-            HumanMessage(content=self._build_single_user_prompt(params)),
-        ]
-        return self._safe_invoke(chain, messages)
+    def _build_messages(self, user_prompt: str) -> list[BaseMessage]:
+        return [self._system_message, HumanMessage(content=user_prompt)]
 
-    def _invoke_pairwise(self, params: dict[str, Any]) -> PairwiseResultType:
-        chain = self.llm.with_structured_output(self._get_pairwise_result_model())
-        messages: list[BaseMessage] = [
-            self._system_message,
-            HumanMessage(content=self._build_pairwise_user_prompt(params)),
-        ]
-        return self._safe_invoke(chain, messages)
+    def _invoke_single(self, params: dict[str, Any]) -> BaseModel:
+        model = self._get_single_result_model()
+        chain = self.llm.with_structured_output(model)
+        return self._safe_invoke(chain, self._build_messages(self._build_single_user_prompt(params)))
+
+    def _invoke_pairwise(self, params: dict[str, Any]) -> BaseModel:
+        model = self._get_pairwise_result_model()
+        chain = self.llm.with_structured_output(model)
+        return self._safe_invoke(chain, self._build_messages(self._build_pairwise_user_prompt(params)))
 
     @staticmethod
     def _safe_invoke(chain: Any, messages: list[BaseMessage]) -> Any:

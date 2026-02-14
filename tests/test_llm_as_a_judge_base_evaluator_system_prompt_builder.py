@@ -9,26 +9,24 @@ from pydantic import BaseModel
 
 from src.benchmark.models.dtos import MetricState
 from src.benchmark.models.enums import MetricType
-from src.benchmark.tool_plan_benchmarking.evaluators.llm_as_a_judge_base_evaluator import (
-    LLMAsAJudgeBaseEvaluator,
-)
+from src.benchmark.tool_plan_benchmarking.evaluators.llm_as_a_judge_base_evaluator import LLMAsAJudgeBaseEvaluator
 
 
 class DummyResult(BaseModel):
     score: int
 
 
-class DummyJudgeEvaluator(LLMAsAJudgeBaseEvaluator[DummyResult, DummyResult]):
+class DummyJudgeEvaluator(LLMAsAJudgeBaseEvaluator):
     def _build_single_user_prompt(self, params: dict[str, Any]) -> str:
         return f"SINGLE: {params['x']}"
 
     def _build_pairwise_user_prompt(self, params: dict[str, Any]) -> str:
         return f"PAIRWISE: {params['x']}"
 
-    def _get_single_result_model(self) -> type[DummyResult]:
+    def _get_single_result_model(self) -> type[BaseModel]:
         return DummyResult
 
-    def _get_pairwise_result_model(self) -> type[DummyResult]:
+    def _get_pairwise_result_model(self) -> type[BaseModel]:
         return DummyResult
 
     def evaluate(self, sessions, query, state, reference=None) -> MetricState:  # noqa: ANN001
@@ -46,6 +44,7 @@ def test_llm_as_a_judge_uses_system_prompt_builder_and_message_list() -> None:
     evaluator = DummyJudgeEvaluator(llm=llm)
 
     result = evaluator._invoke_single({"x": "hello"})
+    assert isinstance(result, DummyResult)
     assert result.score == 1
 
     # Ensure we invoked the LLM with a list of messages.
