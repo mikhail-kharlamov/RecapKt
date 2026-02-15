@@ -83,7 +83,8 @@ class ResponseGenerator:
             },
         }
 
-    def _prepare_history(self, sessions: Session, user_query: str) -> list[BaseMessage]:
+    @staticmethod
+    def _prepare_history(sessions: Session, user_query: str) -> list[BaseMessage]:
         """
         Prepare the message history that will follow the unified system instruction.
 
@@ -93,23 +94,15 @@ class ResponseGenerator:
         :param user_query: latest user request (may already be present as the last user message in `sessions`).
         :return: list[BaseMessage]: prepared history messages (no SystemMessage).
         """
-        trimmed_history = trim_messages(
-            sessions.to_langchain_messages(),
-            token_counter=self._llm,
-            max_tokens=100000,
-            strategy="last",
-            include_system=False,
-            allow_partial=False,
-        )
-
+        history: list[BaseMessage] = sessions.to_langchain_messages()
         if user_query.strip() != "":
             should_append = True
-            if trimmed_history and isinstance(trimmed_history[-1], HumanMessage):
-                should_append = trimmed_history[-1].content != user_query
+            if history and isinstance(history[-1], HumanMessage):
+                should_append = history[-1].content != user_query
             if should_append:
-                trimmed_history.append(HumanMessage(content=user_query))
+                history.append(HumanMessage(content=user_query))
 
-        return trimmed_history
+        return history
 
     def _crop(self, messages: list[BaseMessage], max_tokens: int = 80000) -> list[BaseMessage]:
         """Trim a list of messages to fit into a token budget.
@@ -201,7 +194,7 @@ class ResponseGenerator:
         :return: ResponseContext: raw model output and the prepared history sent to the model.
         """
         try:
-            history_messages: list[BaseMessage] = self._prepare_history(last_session, user_query)
+            history_messages: list[BaseMessage] = ResponseGenerator._prepare_history(last_session, user_query)
 
             history_messages = [m for m in history_messages if not isinstance(m, SystemMessage)]
 

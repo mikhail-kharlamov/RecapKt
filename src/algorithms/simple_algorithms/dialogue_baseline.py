@@ -137,7 +137,7 @@ class DialogueBaseline(Dialogue):
         tokens = encoding.encode(text)
         return len(tokens)
 
-    def _crop(self, messages: list[Any], max_tokens: int = 80_000) -> list[BaseMessage]:
+    def _crop(self, messages: list[Any], max_tokens: int = 80000) -> list[BaseMessage]:
         """
         Trim a list of messages to fit into a token budget.
 

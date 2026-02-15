@@ -14,5 +14,8 @@ Instead, produce a strict JSON action plan that lists, in the correct execution 
 3.  **Missing Data:** If an argument value is unknown at planning time, set it to `null` and add an entry in `assumptions` describing what data needs to be discovered.
 4.  **Final Answer:** Use `kind = "final_answer"` for the final composition step. Do not write the actual answer text, just the plan to compose it.
 5.  **Memory Usage:** If you rely on information provided in the Memory sections, strictly reference it in the `memory_used` field of the JSON output.
-
+6.	**Tool Call Prioritization**:
+_Do not simply add the first available tools that seem helpful._ Instead, the model should deeply analyze the provided memory and prior interactions with the user. It is essential to understand which tools have already been used, what data has been gathered, and what actions have been taken. The model should deduce which tools are truly likely to assist in answering the user’s request, relying on context and knowledge from previous sessions.
+Furthermore, the model should attempt to comprehend the structure of the project or task the user is working on, in order to avoid unnecessary requests that would not be helpful, as well as to prevent overly abstract or undefined requests that could lead to inefficient actions. This includes understanding what data is already available, what queries have been made in the past, and how this data can be utilized to construct a logical sequence of steps aimed at addressing the current request.
+It is also crucial to note that the more context the model has, the more accurately it can choose appropriate tools and actions, minimizing redundant queries and focusing all efforts on the key points that will bring the most value in answering the request.---
 ---

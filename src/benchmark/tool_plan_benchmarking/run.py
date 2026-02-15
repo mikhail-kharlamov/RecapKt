@@ -3,10 +3,16 @@ import json
 import logging
 import os
 from pathlib import Path
+from typing import Any
 
 import tiktoken
 from jinja2 import Environment, FileSystemLoader
 from load_dotenv import load_dotenv
+from pydantic import SecretStr
+
+from langchain_core.messages import BaseMessage
+from langchain_core.messages.utils import messages_from_dict
+from langchain_openai import ChatOpenAI
 
 from src.algorithms.dialogue import Dialogue
 from src.algorithms.simple_algorithms.dialog_short_tools import DialogueWithShortTools
@@ -281,10 +287,12 @@ class Runner:
 
     @staticmethod
     def get_spent_tokens_count(logs: BaseRecord, model: OpenAIModels) -> TokenInfo:
-        prompt = str(logs.query)
+        # IMPORTANT: prompt tokens are counted from `prepared_messages` (not from `logs.query`).
+        input_tokens = Runner.__count_prepared_messages_tokens(logs.prepared_messages, model)
+
         response = str(logs.response)
-        input_tokens = Runner.__count_tokens(prompt)
         output_tokens = Runner.__count_tokens(response)
+
         input_price = input_tokens * MODEL_PRICES[model].input_per_million / 1_000_000
         output_price = output_tokens * MODEL_PRICES[model].output_per_million / 1_000_000
         return TokenInfo(
@@ -294,8 +302,44 @@ class Runner:
             output_tokens=output_tokens,
             input_price=input_price,
             output_price=output_price,
-            total_price=input_price + output_price
+            total_price=input_price + output_price,
         )
+
+    @staticmethod
+    def __count_prepared_messages_tokens(
+        raw_prepared_messages: list[dict[str, Any]],
+        model: OpenAIModels,
+    ) -> int:
+        if not raw_prepared_messages:
+            return 0
+
+        try:
+            # Logs store `BaseMessage.model_dump(mode="json")` output.
+            # LangChain expects: {"type": <...>, "data": { ...message fields... }}
+            wrapped: list[dict[str, Any]] = []
+            for raw in raw_prepared_messages:
+                if not isinstance(raw, dict):
+                    continue
+
+                msg_type = raw.get("type")
+                if not isinstance(msg_type, str):
+                    continue
+
+                wrapped.append({
+                    "type": msg_type,
+                    "data": {k: v for k, v in raw.items() if k != "type"},
+                })
+
+            prepared_messages: list[BaseMessage] = messages_from_dict(wrapped)
+
+            # `get_num_tokens_from_messages` is offline (no API call) and uses model-specific tokenization.
+            llm = ChatOpenAI(model=model.value, api_key=SecretStr("DUMMY"))
+            return llm.get_num_tokens_from_messages(prepared_messages)
+        except Exception:
+            logging.exception(
+                "Failed to count tokens from prepared_messages via LangChain; falling back to tiktoken on JSON dump."
+            )
+            return Runner.__count_tokens(json.dumps(raw_prepared_messages, ensure_ascii=False))
 
     def __divide_session(self, session: Session) -> DividedSession:
         past_interactions: list[BaseBlock] = []
@@ -337,27 +381,30 @@ class Runner:
             "FullBaseline",
             "LastBaseline",
             "RagMemoryBank",
-            "RagRecsum"
+            "RagRecsum",
+            "ShortTools",
+            "Weights"
         ]:
-            folder = path / directory
-            ps = []
-            for p in folder.glob(JSON_FILE_TEMPLATE):
-                ps.append(p)
-            ps.sort()
+            for count_of_sessions in ['1', '3', '5', '7', '9', '11', '13', '15']:
+                folder = path / directory / count_of_sessions
+                ps = []
+                for p in folder.glob(JSON_FILE_TEMPLATE):
+                    ps.append(p)
+                ps.sort()
 
-            for i in range(len(ps)):
-                print(i)
-                p = ps[i]
-                with p.open("r", encoding="utf-8") as f:
-                    d = json.load(f)
-                if d.get("memory") is None:
-                    record = BaseRecord.from_dict(d)
-                else:
-                    record = MemoryRecord.from_dict(d)
-                tokens_info = Runner.get_spent_tokens_count(record, OpenAIModels.GPT_4_O_MINI)
-                p_n = p.resolve().parent / f"{p.stem}_tokens.json"
-                with p_n.open("w", encoding="utf-8") as f:
-                    json.dump(tokens_info.to_dict(encode_json=True), f, indent=4)
+                for i in range(len(ps)):
+                    print(i)
+                    p = ps[i]
+                    with p.open("r", encoding="utf-8") as f:
+                        d = json.load(f)
+                    if d.get("memory") is None:
+                        record = BaseRecord.from_dict(d)
+                    else:
+                        record = MemoryRecord.from_dict(d)
+                    tokens_info = Runner.get_spent_tokens_count(record, OpenAIModels.GPT_4_O_MINI)
+                    p_n = p.resolve().parent / f"{p.stem}_tokens.json"
+                    with p_n.open("w", encoding="utf-8") as f:
+                        json.dump(tokens_info.to_dict(encode_json=True), f, indent=4)
 
     @staticmethod
     def build_graph(
@@ -470,7 +517,7 @@ def _build_arg_parser() -> argparse.ArgumentParser:
 if __name__ == "__main__":
     configure_logs(loglevel=logging.INFO)
 
-    args = _build_arg_parser().parse_args()
+    """args = _build_arg_parser().parse_args()
 
     runner = Runner()
     if args.eval_by_logs:
@@ -492,4 +539,6 @@ if __name__ == "__main__":
             AlgorithmDirectory.SHORT_TOOLS.value,
         ],
         normalize=False,
-    )
+    )"""
+
+    Runner.tokens()
