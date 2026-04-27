@@ -6,9 +6,9 @@ from typing import Any
 
 class ChatSessionCombiner:
     def __init__(
-            self,
-            file_list: list[str],
-            output_file: str = "combined_chat_history_sessions.json",
+        self,
+        file_list: list[str],
+        output_file: str = "combined_chat_history_sessions.json",
     ) -> None:
         self.file_list = file_list
         self.output_file = output_file
@@ -34,7 +34,7 @@ class ChatSessionCombiner:
             return None
 
     def _create_session_entry(
-            self, file_name: str, data: dict[str, Any]
+        self, file_name: str, data: dict[str, Any]
     ) -> dict[str, Any]:
         session_id = self._extract_session_id(file_name)
         return {"session_id": session_id, "messages": data}

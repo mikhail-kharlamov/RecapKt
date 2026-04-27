@@ -29,7 +29,7 @@ def fake_state():
         code_memory_storage=FakeStorage("code"),
         tool_memory_storage=FakeStorage("tool"),
         query="Test query",
-        prepared_messages=[]
+        prepared_messages=[],
     )
     s._response = "Test response"
     s.text_memory = [["memory line 1", "memory line 2"]]
@@ -55,7 +55,7 @@ def test_log_iteration_creates_file(tmp_path, fake_state, sessions):
         sessions=sessions,
         state=fake_state,
         metrics=metric_list,
-        subdirectory=subdir
+        subdirectory=subdir,
     )
 
     assert isinstance(record, MemoryRecord)
@@ -102,7 +102,7 @@ def test_log_iteration_without_metric(tmp_path, fake_state, sessions):
         sessions=sessions,
         state=fake_state,
         metrics=None,
-        subdirectory=subdir
+        subdirectory=subdir,
     )
 
     assert record.metric is None or record.metric == []

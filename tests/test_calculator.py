@@ -27,7 +27,7 @@ def fake_logger():
         response={"some": "response"},
         sessions=[],
         prepared_messages=[],
-        metric=[MetricState(metric_name=MetricType("COHERENCE"), metric_value=0.95)]
+        metric=[MetricState(metric_name=MetricType("COHERENCE"), metric_value=0.95)],
     )
     return logger
 
@@ -36,8 +36,7 @@ def fake_logger():
 def fake_evaluator():
     evaluator = MagicMock()
     evaluator.evaluate.return_value = MetricState(
-        metric_name=MetricType("COHERENCE"),
-        metric_value=0.95
+        metric_name=MetricType("COHERENCE"), metric_value=0.95
     )
     return evaluator
 
@@ -53,7 +52,7 @@ def fake_algorithm():
         tool_memory_storage=None,
         query="What is AI?",
         _response={"some": "response"},
-        prepared_messages=[]
+        prepared_messages=[],
     )
     algo.process_dialogue.return_value = fake_state
     return algo
@@ -70,13 +69,19 @@ def sessions():
 
 @pytest.fixture
 def reference_session():
-    return Session([
-        BaseBlock(role="USER", content="Tell me about AI."),
-        BaseBlock(role="ASSISTANT", content="AI stands for artificial intelligence.")
-    ])
+    return Session(
+        [
+            BaseBlock(role="USER", content="Tell me about AI."),
+            BaseBlock(
+                role="ASSISTANT", content="AI stands for artificial intelligence."
+            ),
+        ]
+    )
 
 
-def test_evaluate_success(fake_logger, fake_evaluator, fake_algorithm, sessions, reference_session):
+def test_evaluate_success(
+    fake_logger, fake_evaluator, fake_algorithm, sessions, reference_session
+):
     results = Calculator.evaluate(
         algorithms=[fake_algorithm],
         evaluator_functions=[fake_evaluator],
@@ -85,7 +90,7 @@ def test_evaluate_success(fake_logger, fake_evaluator, fake_algorithm, sessions,
         logger=fake_logger,
         prompt="What is AI?",
         subdirectory=Path("test_subdir"),
-        iteration=1
+        iteration=1,
     )
 
     assert isinstance(results, list)

@@ -1,4 +1,3 @@
-import json
 import logging
 import os
 
@@ -8,25 +7,19 @@ import tiktoken
 
 from dotenv import load_dotenv
 from langchain_community.callbacks import get_openai_callback
-from langchain_core.exceptions import OutputParserException
 from langchain_core.language_models import BaseChatModel
 from langchain_core.messages import (
+    AIMessage,
     BaseMessage,
     SystemMessage,
     ToolMessage,
-    trim_messages, AIMessage,
+    trim_messages,
 )
 from langchain_core.output_parsers import StrOutputParser
 from langchain_core.runnables import Runnable
 from langchain_ollama.chat_models import ChatOllama
 from langchain_openai import ChatOpenAI
 from pydantic import SecretStr
-from tenacity import (
-    retry,
-    retry_if_exception_type,
-    stop_after_attempt,
-    wait_exponential,
-)
 
 from src.algorithms.dialogue import Dialogue
 from src.algorithms.summarize_algorithms.core.models import (
@@ -37,6 +30,7 @@ from src.algorithms.summarize_algorithms.core.models import (
 )
 from src.benchmark.logger.baseline_logger import BaselineLogger
 from src.benchmark.tool_plan_benchmarking.tools_and_schemas.parsed_jsons import TOOLS
+from src.utils.parse_response_properties import parse_response_properties
 from src.utils.system_prompt_builder import MemorySections, SystemPromptBuilder
 
 
@@ -52,6 +46,7 @@ class DialogueBaseline(Dialogue):
         load_dotenv()
 
         self.system_name = system_name
+        self.llm: BaseChatModel
 
         self._initialize_model(llm, is_local)
 
@@ -138,29 +133,11 @@ class DialogueBaseline(Dialogue):
         return len(tokens)
 
     def _crop(self, messages: list[Any], max_tokens: int = 80000) -> list[BaseMessage]:
-        """
-        Trim a list of messages to fit into a token budget.
-
-        This preserves an initial `SystemMessage` (if present) and ensures the first message after trimming is not a
-        `ToolMessage` (some models/tooling can break when history starts with tool output).
-
-        :param messages: message list to trim.
-        :param max_tokens: token budget.
-        :return: list[BaseMessage]: trimmed messages.
-        """
-        system_msg = None
-        if messages and isinstance(messages[0], SystemMessage):
-            system_msg = messages[0]
-            messages_to_trim = messages[1:]
-        else:
-            messages_to_trim = messages
-
-        # Log token counts before trimming
-        total_tokens_before_crop = self.llm.get_num_tokens_from_messages(messages_to_trim)
+        total_tokens_before_crop = self.llm.get_num_tokens_from_messages(messages)
         logging.info(f"Total tokens before crop: {total_tokens_before_crop}")
 
-        trimmed_messages = trim_messages(
-            messages_to_trim,
+        trimmed_messages: list[BaseMessage] = trim_messages(
+            messages,
             token_counter=self.llm,
             max_tokens=max_tokens,
             strategy="last",
@@ -168,14 +145,26 @@ class DialogueBaseline(Dialogue):
             allow_partial=False,
         )
 
-        while trimmed_messages and isinstance(trimmed_messages[0], ToolMessage):
-            trimmed_messages.pop(0)
+        if (
+            len(trimmed_messages) >= 2
+            and isinstance(trimmed_messages[0], SystemMessage)
+            and isinstance(trimmed_messages[1], ToolMessage)
+        ):
+            tool_message: ToolMessage = trimmed_messages[1]
+            assistant_before_tool: AIMessage | None = None
+            tool_call_id = getattr(tool_message, "tool_call_id", None)
 
-        if system_msg:
-            # Log token count after trimming
-            total_tokens_after_crop = self.llm.get_num_tokens_from_messages(trimmed_messages)
-            logging.info(f"Total tokens after crop (without system message): {total_tokens_after_crop}")
-            return [system_msg] + trimmed_messages
+            for i, msg in enumerate(messages):
+                if not isinstance(msg, ToolMessage):
+                    continue
+                if msg is tool_message or getattr(msg, "tool_call_id", None) == tool_call_id:
+                    if i > 0 and isinstance(messages[i - 1], AIMessage):
+                        assistant_before_tool = messages[i - 1]
+                    break
+
+            if assistant_before_tool is not None:
+                return [trimmed_messages[0], assistant_before_tool, tool_message, *trimmed_messages[2:]]
+
         return trimmed_messages
 
     @staticmethod
@@ -230,12 +219,12 @@ class DialogueBaseline(Dialogue):
 
         chain = self._build_chain(structure, tools)
 
-        @retry(
-            stop=stop_after_attempt(3),
-            wait=wait_exponential(multiplier=1, min=2, max=10),
-            retry=retry_if_exception_type(OutputParserException),
-            reraise=True
-        )
+        #@retry(
+        #    stop=stop_after_attempt(3),
+        #    wait=wait_exponential(multiplier=1, min=2, max=10),
+        #    retry=retry_if_exception_type(OutputParserException),
+        #    reraise=True
+        #)
         def invoke_with_retry(full_history: list[BaseMessage]) -> Any:
             logging.info("Attempting to invoke chain...")
             return chain.invoke(full_history)
@@ -244,9 +233,19 @@ class DialogueBaseline(Dialogue):
         context_with_system: list[BaseMessage] = self._crop(
             [SystemMessage(content=system_instruction), *context]
         )
+        print(self.llm.get_num_tokens_from_messages(context_with_system))
+        print(type(context_with_system[0]))
 
         with get_openai_callback() as cb:
-            result = invoke_with_retry(context_with_system)
+            res = invoke_with_retry(context_with_system)
+            result = parse_response_properties(res)
+            r = result.get("plan_steps", [])
+            print(r)
+            if not r:
+                print(structure)
+            for step in r:
+                if not isinstance(step, dict):
+                    print(structure)
 
             self.prompt_tokens += cb.prompt_tokens
             self.completion_tokens += cb.completion_tokens

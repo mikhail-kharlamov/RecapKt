@@ -1,12 +1,14 @@
 from __future__ import annotations
 
 import json
+
+from collections.abc import Iterable
 from dataclasses import asdict, is_dataclass
 from decimal import Decimal
 from enum import Enum
 from json import JSONDecodeError
 from pathlib import Path
-from typing import Any, Iterable
+from typing import Any
 
 
 class JsonLogUtils:
@@ -50,11 +52,15 @@ class JsonLogUtils:
             if isinstance(value, list):
                 for item in value:
                     if not isinstance(item, dict):
-                        raise ValueError(f"Expected dict items in JSON list, got: {type(item)!r}")
+                        raise ValueError(
+                            f"Expected dict items in JSON list, got: {type(item)!r}"
+                        )
                     yield item
                 continue
 
-            raise ValueError(f"Expected JSON object (dict) or list of objects, got: {type(value)!r}")
+            raise ValueError(
+                f"Expected JSON object (dict) or list of objects, got: {type(value)!r}"
+            )
 
     @classmethod
     def load_log_payloads(cls, path: Path) -> list[dict[str, Any]]:
@@ -78,17 +84,21 @@ class JsonLogUtils:
             return str(obj)
         if isinstance(obj, Path):
             return str(obj)
-        if is_dataclass(obj):
+        if is_dataclass(obj) and not isinstance(obj, type):
             return asdict(obj)
         if hasattr(obj, "model_dump"):
             return obj.model_dump(mode="json")
         if hasattr(obj, "to_dict"):
             return obj.to_dict()
-        raise TypeError(f"Object of type {obj.__class__.__name__} is not JSON serializable")
+        raise TypeError(
+            f"Object of type {obj.__class__.__name__} is not JSON serializable"
+        )
 
     @classmethod
     def dumps(cls, data: Any) -> str:
-        return json.dumps(data, ensure_ascii=False, indent=cls._INDENT, default=cls.json_default)
+        return json.dumps(
+            data, ensure_ascii=False, indent=cls._INDENT, default=cls.json_default
+        )
 
     @classmethod
     def write(cls, path: Path, data: Any) -> None:

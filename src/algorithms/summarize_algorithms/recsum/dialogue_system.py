@@ -1,4 +1,3 @@
-
 from src.algorithms.summarize_algorithms.core.base_dialogue_system import (
     BaseDialogueSystem,
 )
@@ -36,7 +35,7 @@ class RecsumDialogueSystem(BaseDialogueSystem):
                 embeddings=self.embed_model, max_session_id=self.max_session_id
             ),
             query=query,
-            prepared_messages=[]
+            prepared_messages=[],
         )
 
     @property

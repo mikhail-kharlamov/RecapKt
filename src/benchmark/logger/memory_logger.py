@@ -1,7 +1,7 @@
 from datetime import datetime
 from pathlib import Path
 
-from typing_extensions import override
+from typing_extensions import override  # noqa: UP035
 
 from src.algorithms.summarize_algorithms.core.models import DialogueState, Session
 from src.benchmark.logger.base_logger import BaseLogger
@@ -35,11 +35,15 @@ class MemoryLogger(BaseLogger):
             "response": getattr(state, "response", None),
             "memory": MemoryLogger._serialize_memories(state),
             "sessions": [s.to_dict() for s in sessions],
-            "prepared_messages": [s.model_dump(mode="json") for s in state.prepared_messages],
+            "prepared_messages": [
+                s.model_dump(mode="json") for s in state.prepared_messages
+            ],
         }
 
         if save:
-            self._prepare_and_save_log(record, subdirectory, system_name, iteration, metrics)
+            self._prepare_and_save_log(
+                record, subdirectory, system_name, iteration, metrics
+            )
 
         return MemoryRecord.from_dict(record)
 
@@ -63,6 +67,8 @@ class MemoryLogger(BaseLogger):
                 continue
 
             for path in sorted(directory.glob("*.json")):
+                if "tokens" in path.stem.lower():
+                    continue
                 for payload in JsonLogUtils.load_log_payloads(path):
                     if payload.get("memory") is None:
                         records.append(BaseRecord.from_dict(payload))

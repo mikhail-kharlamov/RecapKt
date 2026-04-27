@@ -1,5 +1,6 @@
 from dataclasses import dataclass
-from typing import override
+
+from typing_extensions import override  # noqa: UP035
 
 from src.algorithms.summarize_algorithms.core.models import (
     BaseBlock,
@@ -11,6 +12,7 @@ from src.algorithms.summarize_algorithms.core.models import (
 @dataclass
 class MemoryFragment:
     """Serializable representation of a remembered block used by `MemoryStorage`."""
+
     embed_content: str
     content: str
     role: str
@@ -47,6 +49,7 @@ class MemoryFragment:
 @dataclass
 class ToolMemoryFragment(MemoryFragment):
     """Specialized fragment for tool calls/responses (keeps tool metadata)."""
+
     id: str
     name: str
     arguments: str
@@ -54,7 +57,11 @@ class ToolMemoryFragment(MemoryFragment):
 
     @override
     @classmethod
-    def from_block(cls, block: ToolCallBlock, session_id: int):
+    def from_block(
+        cls, block: BaseBlock, session_id: int
+    ) -> "ToolMemoryFragment":
+        if not isinstance(block, ToolCallBlock):
+            raise TypeError("ToolMemoryFragment requires a ToolCallBlock")
         return cls(
             embed_content=block.content,
             content=block.content,
@@ -67,7 +74,7 @@ class ToolMemoryFragment(MemoryFragment):
         )
 
     @override
-    def to_block(self):
+    def to_block(self) -> ToolCallBlock:
         return ToolCallBlock(
             role=self.role,
             content=self.content,
@@ -81,11 +88,16 @@ class ToolMemoryFragment(MemoryFragment):
 @dataclass
 class CodeMemoryFragment(MemoryFragment):
     """Specialized fragment for code blocks (embeds `code`, not `content`)."""
+
     code: str
 
     @override
     @classmethod
-    def from_block(cls, block: CodeBlock, session_id: int):
+    def from_block(
+        cls, block: BaseBlock, session_id: int
+    ) -> "CodeMemoryFragment":
+        if not isinstance(block, CodeBlock):
+            raise TypeError("CodeMemoryFragment requires a CodeBlock")
         return cls(
             embed_content=block.code,
             content=block.code,
@@ -95,7 +107,7 @@ class CodeMemoryFragment(MemoryFragment):
         )
 
     @override
-    def to_block(self):
+    def to_block(self) -> CodeBlock:
         return CodeBlock(
             role=self.role,
             content="",

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import os
+
 from abc import abstractmethod
 from typing import Any
 
@@ -10,7 +11,12 @@ from langchain_core.messages import BaseMessage, HumanMessage, SystemMessage
 from langchain_openai import ChatOpenAI
 from pydantic import BaseModel, SecretStr
 
-from src.algorithms.summarize_algorithms.core.models import BaseBlock, DialogueState, OpenAIModels, Session
+from src.algorithms.summarize_algorithms.core.models import (
+    BaseBlock,
+    DialogueState,
+    OpenAIModels,
+    Session,
+)
 from src.benchmark.models.dtos import MetricState
 from src.benchmark.tool_plan_benchmarking.evaluators.base_evaluator import BaseEvaluator
 from src.utils.system_prompt_builder import MemorySections, SystemPromptBuilder
@@ -79,12 +85,16 @@ class LLMAsAJudgeBaseEvaluator(BaseEvaluator):
     def _invoke_single(self, params: dict[str, Any]) -> BaseModel:
         model = self._get_single_result_model()
         chain = self.llm.with_structured_output(model)
-        return self._safe_invoke(chain, self._build_messages(self._build_single_user_prompt(params)))
+        return self._safe_invoke(
+            chain, self._build_messages(self._build_single_user_prompt(params))
+        )
 
     def _invoke_pairwise(self, params: dict[str, Any]) -> BaseModel:
         model = self._get_pairwise_result_model()
         chain = self.llm.with_structured_output(model)
-        return self._safe_invoke(chain, self._build_messages(self._build_pairwise_user_prompt(params)))
+        return self._safe_invoke(
+            chain, self._build_messages(self._build_pairwise_user_prompt(params))
+        )
 
     @staticmethod
     def _safe_invoke(chain: Any, messages: list[BaseMessage]) -> Any:
@@ -100,5 +110,4 @@ class LLMAsAJudgeBaseEvaluator(BaseEvaluator):
         query: str,
         state: DialogueState,
         reference: list[BaseBlock] | None = None,
-    ) -> MetricState:
-        ...
+    ) -> MetricState: ...

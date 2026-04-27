@@ -24,7 +24,7 @@ class MessageProcessor:
         last_end = 0
 
         for match in cls.CODE_PATTERN.finditer(message_text):
-            before_code = message_text[last_end: match.start()].strip()
+            before_code = message_text[last_end : match.start()].strip()
             code_content = match.group(1).strip()
 
             if before_code:
@@ -107,9 +107,9 @@ class ChatDataset:
 
     @classmethod
     def from_file(
-            cls,
-            file_name: str = "/Users/mikhailkharlamov/Documents/RecapKt/src/benchmark/agent_chat/"
-                             "combined_chat_history_sessions.json",
+        cls,
+        file_name: str = "/Users/mikhailkharlamov/Documents/RecapKt/src/benchmark/agent_chat/"
+        "combined_chat_history_sessions.json",
     ) -> "ChatDataset":
         processor = MessageProcessor()
         sessions = []

@@ -28,7 +28,14 @@ def _state_with_plan(tool_calls: list[tuple[str, dict]]) -> DialogueState:
     )
     state._response = {
         "plan_steps": [
-            {"kind": "tool_call", "name": name, "args": args, "id": f"s{i}", "description": "", "depends_on": []}
+            {
+                "kind": "tool_call",
+                "name": name,
+                "args": args,
+                "id": f"s{i}",
+                "description": "",
+                "depends_on": [],
+            }
             for i, (name, args) in enumerate(tool_calls, start=1)
         ]
     }
@@ -72,3 +79,53 @@ def test_f1_strict_requires_args_match() -> None:
 
     assert metric.metric_name == MetricType.F1_TOOL_STRICT
     assert metric.metric_value == Decimal("0")
+
+
+def test_f1_arguments_similarity_counts_directly(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    class FakeSemanticSimilarity:
+        def compare_json(self, json_a: dict, json_b: dict) -> float:  # noqa: ANN001
+            return 0.9 if json_a.get("path") == json_b.get("path") else 0.0
+
+    monkeypatch.setattr(
+        "src.benchmark.tool_plan_benchmarking.evaluators.f1_tool_evaluator.SemanticSimilarity",
+        FakeSemanticSimilarity,
+    )
+
+    evaluator = F1ToolEvaluator(mode="arguments_similarity")
+    state = _state_with_plan([("read_file", {"path": "a", "line": 10})])
+    ref = _reference(("read_file", {"path": "a", "line": 99}))
+
+    metric = evaluator.evaluate([Session([])], "q", state, ref)
+
+    assert metric.metric_name == MetricType.F1_TOOL_ARGUMENTS_SIMILARITY
+    assert metric.metric_value == Decimal("1")
+
+
+def test_f1_arguments_similarity_uses_one_to_one_matching(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    class FakeSemanticSimilarity:
+        def compare_json(self, json_a: dict, json_b: dict) -> float:  # noqa: ANN001
+            return 0.9 if json_a.get("path") == json_b.get("path") else 0.0
+
+    monkeypatch.setattr(
+        "src.benchmark.tool_plan_benchmarking.evaluators.f1_tool_evaluator.SemanticSimilarity",
+        FakeSemanticSimilarity,
+    )
+
+    evaluator = F1ToolEvaluator(mode="arguments_similarity")
+    state = _state_with_plan(
+        [
+            ("read_file", {"path": "a"}),
+            ("read_file", {"path": "a"}),
+        ]
+    )
+    ref = _reference(("read_file", {"path": "a"}))
+
+    metric = evaluator.evaluate([Session([])], "q", state, ref)
+
+    assert metric.metric_name == MetricType.F1_TOOL_ARGUMENTS_SIMILARITY
+    # tp=1 fp=1 fn=0 => F1=2/3
+    assert metric.metric_value == Decimal("0.6666666666666666666666666667")

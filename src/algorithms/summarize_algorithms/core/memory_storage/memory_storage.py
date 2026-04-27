@@ -45,7 +45,7 @@ class MemoryStorage:
             self.embeddings = embeddings or OpenAIEmbeddings(
                 model="text-embedding-3-small",
                 chunk_size=100,
-                api_key=SecretStr(api_key)
+                api_key=SecretStr(api_key),
             )
         else:
             raise ValueError("OPENAI_API_KEY environment variable is not loaded")
@@ -177,6 +177,10 @@ class MemoryStorage:
             "index_info": {
                 "ntotal": int(self.index.ntotal),
                 "dimension": int(self.index.d),
-            } if self.index is not None else None,
-            "embeddings_model": getattr(self.embeddings, "model", str(type(self.embeddings))),
+            }
+            if self.index is not None
+            else None,
+            "embeddings_model": getattr(
+                self.embeddings, "model", str(type(self.embeddings))
+            ),
         }

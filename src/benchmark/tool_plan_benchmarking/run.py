@@ -2,17 +2,19 @@ import argparse
 import json
 import logging
 import os
+
+from decimal import ROUND_HALF_UP, Decimal
 from pathlib import Path
 from typing import Any
 
 import tiktoken
-from jinja2 import Environment, FileSystemLoader
-from load_dotenv import load_dotenv
-from pydantic import SecretStr
 
+from jinja2 import Environment, FileSystemLoader
 from langchain_core.messages import BaseMessage
 from langchain_core.messages.utils import messages_from_dict
 from langchain_openai import ChatOpenAI
+from load_dotenv import load_dotenv
+from pydantic import SecretStr
 
 from src.algorithms.dialogue import Dialogue
 from src.algorithms.simple_algorithms.dialog_short_tools import DialogueWithShortTools
@@ -29,6 +31,7 @@ from src.algorithms.summarize_algorithms.memory_bank.dialogue_system import (
 from src.algorithms.summarize_algorithms.recsum.dialogue_system import (
     RecsumDialogueSystem,
 )
+from src.benchmark.logger.base_logger import BaseLogger
 from src.benchmark.logger.baseline_logger import BaselineLogger
 from src.benchmark.logger.memory_logger import MemoryLogger
 from src.benchmark.models.dtos import (
@@ -38,7 +41,7 @@ from src.benchmark.models.dtos import (
     MemoryRecord,
     TokenInfo,
 )
-from src.benchmark.models.enums import AlgorithmName, MetricType, AlgorithmDirectory
+from src.benchmark.models.enums import AlgorithmDirectory, AlgorithmName, MetricType
 from src.benchmark.tool_plan_benchmarking.evaluators.f1_tool_evaluator import (
     F1ToolEvaluator,
 )
@@ -58,6 +61,22 @@ BASE_DATA_PATH = os.getenv("BASE_DATA_PATH", "")
 LOGS_PATH = os.getenv("LOGS_PATH", Path(__file__).resolve().parent / "logs" / "memory")
 
 JSON_FILE_TEMPLATE: str = "*.json"
+TOKENS_FILE_SUFFIX: str = "_tokens.json"
+TOKENS_AVERAGED_FILENAME: str = "tokens_averaged.json"
+
+ALGORITHM_DIRS_FOR_TOKENS: list[str] = [
+    "BaseMemoryBank",
+    "BaseRecsum",
+    "FullBaseline",
+    "LastBaseline",
+    "RagMemoryBank",
+    "RagRecsum",
+    "ShortTools",
+    "Weights",
+]
+
+SESSION_COUNTS_FOR_TOKENS: list[str] = ["1", "3", "5", "7", "9", "11", "13", "15"]
+RUNS_PER_FOLDER_FOR_AVERAGING: int = 5
 
 
 class Runner:
@@ -74,9 +93,7 @@ class Runner:
     def __init__(self, templates_dir: str = "prompts") -> None:
         self._logger = logging.getLogger()
         self._env = Environment(
-            loader=FileSystemLoader(templates_dir),
-            autoescape=True,
-            trim_blocks=True
+            loader=FileSystemLoader(templates_dir), autoescape=True, trim_blocks=True
         )
 
         self._baseline_logger = BaselineLogger()
@@ -99,20 +116,21 @@ class Runner:
 
         path_data_type_1: Path = Path(BASE_DATA_PATH) / "data_type_1"
         for file in path_data_type_1.glob(JSON_FILE_TEMPLATE):
-            past_interactions.append(
-                Loader.load_session_data_type_1(file)
-            )
+            past_interactions.append(Loader.load_session_data_type_1(file))
 
         path_data_type_2: Path = Path(BASE_DATA_PATH) / "data_type_2"
         for file in path_data_type_2.glob(JSON_FILE_TEMPLATE):
-            past_interactions.append(
-                Loader.load_session_data_type_2(file)
-            )
+            past_interactions.append(Loader.load_session_data_type_2(file))
 
-        gold_session: Session = Loader.load_session_data_type_1(Path(BASE_DATA_PATH) / "gold_session.json")
+        gold_session: Session = Loader.load_session_data_type_1(
+            Path(BASE_DATA_PATH) / "gold_session.json"
+        )
 
         divided_session: DividedSession = self.__divide_session(gold_session)
-        reference, session = divided_session.reference, divided_session.past_interactions
+        reference, session = (
+            divided_session.reference,
+            divided_session.past_interactions,
+        )
 
         # The algorithms expect `system_prompt` argument to contain the latest user request.
         prompt = session[-1].content if len(session) > 0 else ""
@@ -121,7 +139,7 @@ class Runner:
         f1_tool_evaluator_arguments_similarity = F1ToolEvaluator("arguments_similarity")
         f1_tool_evaluator = F1ToolEvaluator()
 
-        for count_of_sessions in [1, 3, 5, 7, 9, 11, 13, 15]:
+        for count_of_sessions in [15]:
             subdirectory: Path = Path(str(count_of_sessions))
 
             if name in ("full_baseline", "short_tools", "weights"):
@@ -132,7 +150,7 @@ class Runner:
                     [
                         f1_tool_evaluator,
                         f1_tool_evaluator_strict,
-                        f1_tool_evaluator_arguments_similarity
+                        f1_tool_evaluator_arguments_similarity,
                     ],
                     past_interactions,
                     count_of_sessions,
@@ -142,7 +160,7 @@ class Runner:
                     self._baseline_logger,
                     subdirectory,
                     None,
-                    True
+                    True,
                 )
             elif name == "last_baseline":
                 self._logger.info("Start evaluating last baseline statistics")
@@ -152,7 +170,7 @@ class Runner:
                     [
                         f1_tool_evaluator,
                         f1_tool_evaluator_strict,
-                        f1_tool_evaluator_arguments_similarity
+                        f1_tool_evaluator_arguments_similarity,
                     ],
                     [],
                     count_of_sessions,
@@ -162,7 +180,7 @@ class Runner:
                     self._baseline_logger,
                     subdirectory,
                     None,
-                    True
+                    True,
                 )
             else:
                 self._logger.info("Start evaluating memory statistics")
@@ -172,7 +190,7 @@ class Runner:
                     [
                         f1_tool_evaluator,
                         f1_tool_evaluator_strict,
-                        f1_tool_evaluator_arguments_similarity
+                        f1_tool_evaluator_arguments_similarity,
                     ],
                     past_interactions,
                     count_of_sessions,
@@ -182,18 +200,16 @@ class Runner:
                     self._memory_logger,
                     subdirectory,
                     None,
-                    True
+                    True,
                 )
 
-        Statistics.print_statistics(
-            statistics
-        )
+        Statistics.print_statistics(statistics)
 
     def evaluate_by_logs(
-            self,
-            name: str,
-            logs_path: Path | str = LOGS_PATH,
-            iteration: int | None = None,
+        self,
+        name: str,
+        logs_path: Path | str = LOGS_PATH,
+        iteration: int | None = None,
     ) -> None:
         """Append newly-added metrics to existing log JSONs and print updated statistics.
 
@@ -206,7 +222,9 @@ class Runner:
         """
         algorithm: Dialogue = Runner.__init_algorithm(AlgorithmName(name))
 
-        gold_session: Session = Loader.load_session_data_type_1(Path(BASE_DATA_PATH) / "gold_session.json")
+        gold_session: Session = Loader.load_session_data_type_1(
+            Path(BASE_DATA_PATH) / "gold_session.json"
+        )
         divided_session: DividedSession = self.__divide_session(gold_session)
         reference = divided_session.reference
 
@@ -215,11 +233,12 @@ class Runner:
         f1_tool_evaluator = F1ToolEvaluator("nonstrict")
 
         if name in ("full_baseline", "short_tools", "weights"):
-            logger = BaselineLogger()
+            logger: BaseLogger = BaselineLogger()
         else:
             logger = MemoryLogger()
 
         for count_of_sessions in [1, 3, 5, 7, 9, 11, 13, 15]:
+            print(count_of_sessions)
             subdirectory: Path = Path(str(count_of_sessions))
             self._logger.info("Start evaluating by logs (fold=%s)", count_of_sessions)
 
@@ -228,7 +247,7 @@ class Runner:
                 evaluator_functions=[
                     f1_tool_evaluator,
                     f1_tool_evaluator_strict,
-                    f1_tool_evaluator_arguments_similarity
+                    f1_tool_evaluator_arguments_similarity,
                 ],
                 reference=reference,
                 logger=logger,
@@ -243,13 +262,21 @@ class Runner:
     @staticmethod
     def __init_algorithm(name: AlgorithmName) -> Dialogue:
         if name.value == "base_recsum":
-            return RecsumDialogueSystem(embed_code=False, embed_tool=False, system_name="BaseRecsum")
+            return RecsumDialogueSystem(
+                embed_code=False, embed_tool=False, system_name="BaseRecsum"
+            )
         elif name.value == "base_memory_bank":
-            return MemoryBankDialogueSystem(embed_code=False, embed_tool=False, system_name="BaseMemoryBank")
+            return MemoryBankDialogueSystem(
+                embed_code=False, embed_tool=False, system_name="BaseMemoryBank"
+            )
         elif name.value == "rag_recsum":
-            return RecsumDialogueSystem(embed_code=True, embed_tool=True, system_name="RagRecsum")
+            return RecsumDialogueSystem(
+                embed_code=True, embed_tool=True, system_name="RagRecsum"
+            )
         elif name.value == "rag_memory_bank":
-            return MemoryBankDialogueSystem(embed_code=True, embed_tool=True, system_name="RagMemoryBank")
+            return MemoryBankDialogueSystem(
+                embed_code=True, embed_tool=True, system_name="RagMemoryBank"
+            )
         elif name.value == "full_baseline":
             return DialogueBaseline("FullBaseline")
         elif name.value == "short_tools":
@@ -268,7 +295,7 @@ class Runner:
             "FullBaseline",
             "LastBaseline",
             "RagMemoryBank",
-            "RagRecsum"
+            "RagRecsum",
         ]:
             folder = Path(path) / alg_folder
             for path in folder.glob(JSON_FILE_TEMPLATE):
@@ -280,21 +307,22 @@ class Runner:
                     else:
                         record = MemoryRecord.from_dict(obj)
                     records.append(record)
-        return Statistics.calculate_by_logs(
-            count_of_launches=10,
-            metrics=records
-        )
+        return Statistics.calculate_by_logs(count_of_launches=10, metrics=records)
 
     @staticmethod
     def get_spent_tokens_count(logs: BaseRecord, model: OpenAIModels) -> TokenInfo:
         # IMPORTANT: prompt tokens are counted from `prepared_messages` (not from `logs.query`).
-        input_tokens = Runner.__count_prepared_messages_tokens(logs.prepared_messages, model)
+        input_tokens = Runner.__count_prepared_messages_tokens(
+            logs.prepared_messages, model
+        )
 
         response = str(logs.response)
         output_tokens = Runner.__count_tokens(response)
 
         input_price = input_tokens * MODEL_PRICES[model].input_per_million / 1_000_000
-        output_price = output_tokens * MODEL_PRICES[model].output_per_million / 1_000_000
+        output_price = (
+            output_tokens * MODEL_PRICES[model].output_per_million / 1_000_000
+        )
         return TokenInfo(
             model=model,
             price=MODEL_PRICES[model],
@@ -325,10 +353,12 @@ class Runner:
                 if not isinstance(msg_type, str):
                     continue
 
-                wrapped.append({
-                    "type": msg_type,
-                    "data": {k: v for k, v in raw.items() if k != "type"},
-                })
+                wrapped.append(
+                    {
+                        "type": msg_type,
+                        "data": {k: v for k, v in raw.items() if k != "type"},
+                    }
+                )
 
             prepared_messages: list[BaseMessage] = messages_from_dict(wrapped)
 
@@ -339,7 +369,9 @@ class Runner:
             logging.exception(
                 "Failed to count tokens from prepared_messages via LangChain; falling back to tiktoken on JSON dump."
             )
-            return Runner.__count_tokens(json.dumps(raw_prepared_messages, ensure_ascii=False))
+            return Runner.__count_tokens(
+                json.dumps(raw_prepared_messages, ensure_ascii=False)
+            )
 
     def __divide_session(self, session: Session) -> DividedSession:
         past_interactions: list[BaseBlock] = []
@@ -349,7 +381,9 @@ class Runner:
         for i in range(len(session.messages) - 1, -1, -1):
             if is_query_found:
                 past_interactions.append(session.messages[i])
-            elif session.messages[i].role == "USER" and session.messages[i].content != "":
+            elif (
+                session.messages[i].role == "USER" and session.messages[i].content != ""
+            ):
                 self._logger.info(f"User founded {i}")
                 self._logger.info(f"User message: {session.messages[i].content}")
                 query = session.messages[i]
@@ -375,42 +409,130 @@ class Runner:
         )
 
         path = Path(LOGS_PATH)
-        for directory in [
-            "BaseMemoryBank",
-            "BaseRecsum",
-            "FullBaseline",
-            "LastBaseline",
-            "RagMemoryBank",
-            "RagRecsum",
-            "ShortTools",
-            "Weights"
-        ]:
-            for count_of_sessions in ['1', '3', '5', '7', '9', '11', '13', '15']:
+        for directory in ALGORITHM_DIRS_FOR_TOKENS:
+            for count_of_sessions in SESSION_COUNTS_FOR_TOKENS:
                 folder = path / directory / count_of_sessions
-                ps = []
-                for p in folder.glob(JSON_FILE_TEMPLATE):
-                    ps.append(p)
+                if not folder.exists():
+                    continue
+
+                ps: list[Path] = [
+                    p
+                    for p in folder.glob(JSON_FILE_TEMPLATE)
+                    if not p.name.endswith(TOKENS_FILE_SUFFIX)
+                    and p.name != TOKENS_AVERAGED_FILENAME
+                ]
                 ps.sort()
 
-                for i in range(len(ps)):
+                for i, p in enumerate(ps):
                     print(i)
-                    p = ps[i]
                     with p.open("r", encoding="utf-8") as f:
                         d = json.load(f)
+
                     if d.get("memory") is None:
                         record = BaseRecord.from_dict(d)
                     else:
                         record = MemoryRecord.from_dict(d)
-                    tokens_info = Runner.get_spent_tokens_count(record, OpenAIModels.GPT_4_O_MINI)
-                    p_n = p.resolve().parent / f"{p.stem}_tokens.json"
+
+                    tokens_info = Runner.get_spent_tokens_count(
+                        record, OpenAIModels.GPT_4_O_MINI
+                    )
+                    p_n = p.resolve().parent / f"{p.stem}{TOKENS_FILE_SUFFIX}"
                     with p_n.open("w", encoding="utf-8") as f:
                         json.dump(tokens_info.to_dict(encode_json=True), f, indent=4)
 
     @staticmethod
+    def tokens_averaged(model: OpenAIModels = OpenAIModels.GPT_4_O_MINI) -> None:
+        path = Path(LOGS_PATH)
+        result: dict[str, dict[str, dict[str, Any]]] = {}
+
+        for directory in ALGORITHM_DIRS_FOR_TOKENS:
+            directory_result: dict[str, dict[str, Any]] = {}
+
+            for count_of_sessions in SESSION_COUNTS_FOR_TOKENS:
+                folder = path / directory / count_of_sessions
+                if not folder.exists():
+                    continue
+
+                ps: list[Path] = [
+                    p
+                    for p in folder.glob(JSON_FILE_TEMPLATE)
+                    if not p.name.endswith(TOKENS_FILE_SUFFIX)
+                    and p.name != TOKENS_AVERAGED_FILENAME
+                ]
+                ps.sort()
+
+                ps = ps[-RUNS_PER_FOLDER_FOR_AVERAGING:]
+
+                token_infos: list[TokenInfo] = []
+                for p in ps:
+                    with p.open("r", encoding="utf-8") as f:
+                        d = json.load(f)
+
+                    if d.get("memory") is None:
+                        record = BaseRecord.from_dict(d)
+                    else:
+                        record = MemoryRecord.from_dict(d)
+
+                    token_infos.append(Runner.get_spent_tokens_count(record, model))
+
+                if not token_infos:
+                    continue
+
+                n = Decimal(len(token_infos))
+
+                sum_input_tokens = sum(t.input_tokens for t in token_infos)
+                sum_output_tokens = sum(t.output_tokens for t in token_infos)
+
+                sum_input_price = sum(
+                    (t.input_price for t in token_infos), start=Decimal("0")
+                )
+                sum_output_price = sum(
+                    (t.output_price for t in token_infos), start=Decimal("0")
+                )
+                sum_total_price = sum(
+                    (t.total_price for t in token_infos), start=Decimal("0")
+                )
+
+                avg_input_tokens = int(
+                    (Decimal(sum_input_tokens) / n).to_integral_value(
+                        rounding=ROUND_HALF_UP
+                    )
+                )
+                avg_output_tokens = int(
+                    (Decimal(sum_output_tokens) / n).to_integral_value(
+                        rounding=ROUND_HALF_UP
+                    )
+                )
+
+                avg_input_price = sum_input_price / n
+                avg_output_price = sum_output_price / n
+                avg_total_price = sum_total_price / n
+
+                averaged = TokenInfo(
+                    model=model,
+                    price=MODEL_PRICES[model],
+                    input_tokens=avg_input_tokens,
+                    output_tokens=avg_output_tokens,
+                    input_price=avg_input_price,
+                    output_price=avg_output_price,
+                    total_price=avg_total_price,
+                )
+
+                directory_result[count_of_sessions] = averaged.to_dict(encode_json=True)
+
+            if directory_result:
+                result[directory] = directory_result
+
+        output_path = path / TOKENS_AVERAGED_FILENAME
+        output_path.parent.mkdir(parents=True, exist_ok=True)
+        with output_path.open("w", encoding="utf-8") as f:
+            json.dump(result, f, indent=4, ensure_ascii=False)
+
+    @staticmethod
     def build_graph(
-            graph_types: list[type[GraphBuilder]],
-            directories: list[Path | str],
-            normalize: bool = False,
+        graph_types: list[type[GraphBuilder]],
+        directories: list[Path | str],
+        normalize: bool = False,
     ) -> None:
         path = Path(LOGS_PATH)
         if not path.exists():
@@ -441,6 +563,8 @@ class Runner:
 
             r: list[BaseRecord] = []
             for p in ps:
+                if p.name.endswith(TOKENS_FILE_SUFFIX):
+                    continue
                 with p.open("r", encoding="utf8") as f:
                     j = json.load(f)
                     if "memory" in j:
@@ -455,7 +579,11 @@ class Runner:
 
         for graph in graph_types:
             f1_nonstrict = [alg for alg in algs if alg.metric == MetricType.F1_TOOL]
-            f1_arguments_similarity = [alg for alg in algs if alg.metric == MetricType.F1_TOOL_ARGUMENTS_SIMILARITY]
+            f1_arguments_similarity = [
+                alg
+                for alg in algs
+                if alg.metric == MetricType.F1_TOOL_ARGUMENTS_SIMILARITY
+            ]
             f1_strict = [alg for alg in algs if alg.metric == MetricType.F1_TOOL_STRICT]
 
             graphs_dir = path / "graphs"
@@ -473,7 +601,7 @@ class Runner:
             )
             graph.build(
                 StatisticsDto(algorithms=f1_arguments_similarity),
-                str(graphs_dir / f"{graph.__name__}_strict.png"),
+                str(graphs_dir / f"{graph.__name__}_arguments_similarity.png"),
                 "arguments_similarity",
             )
 
@@ -517,6 +645,35 @@ def _build_arg_parser() -> argparse.ArgumentParser:
 if __name__ == "__main__":
     configure_logs(loglevel=logging.INFO)
 
+    runner = Runner()
+    for name in [
+        AlgorithmName.FULL_BASELINE.value,
+        AlgorithmName.LAST_BASELINE.value,
+        AlgorithmName.RAG_MEMORY_BANK.value,
+        AlgorithmName.RAG_RECSUM.value,
+        AlgorithmName.BASE_MEMORY_BANK.value,
+        AlgorithmName.BASE_RECSUM.value,
+        AlgorithmName.WEIGHTS.value,
+        AlgorithmName.SHORT_TOOLS.value,
+    ]:
+        print(name)
+        runner.evaluate_by_logs(name)
+
+    Runner.build_graph(
+        [GeneralTrends],
+        [
+            AlgorithmDirectory.FULL_BASELINE.value,
+            AlgorithmDirectory.LAST_BASELINE.value,
+            AlgorithmDirectory.RAG_MEMORY_BANK.value,
+            AlgorithmDirectory.RAG_RECSUM.value,
+            AlgorithmDirectory.BASE_MEMORY_BANK.value,
+            AlgorithmDirectory.BASE_RECSUM.value,
+            AlgorithmDirectory.WEIGHTS.value,
+            AlgorithmDirectory.SHORT_TOOLS.value,
+        ],
+        normalize=False,
+    )
+
     """args = _build_arg_parser().parse_args()
 
     runner = Runner()
@@ -539,6 +696,8 @@ if __name__ == "__main__":
             AlgorithmDirectory.SHORT_TOOLS.value,
         ],
         normalize=False,
-    )"""
+    )
 
-    Runner.tokens()
+    #Runner.tokens()
+
+    Runner.tokens_averaged()"""

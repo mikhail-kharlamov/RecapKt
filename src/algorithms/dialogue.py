@@ -13,10 +13,9 @@ class Dialogue(Protocol):
     system_name: str
 
     def process_dialogue(
-            self,
-            sessions: list[Session],
-            system_prompt: str,
-            structure: dict[str, Any] | None = None,
-            tools: list[dict[str, Any]] | None = None
-    ) -> DialogueState:
-        ...
+        self,
+        sessions: list[Session],
+        system_prompt: str,
+        structure: dict[str, Any] | None = None,
+        tools: list[dict[str, Any]] | None = None,
+    ) -> DialogueState: ...

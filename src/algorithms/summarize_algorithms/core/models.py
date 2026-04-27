@@ -1,11 +1,12 @@
 import json
 import logging
+
 from collections.abc import Iterator
 from dataclasses import dataclass, field
 from enum import Enum
 from typing import Any
 
-from dataclasses_json import dataclass_json, DataClassJsonMixin
+from dataclasses_json import DataClassJsonMixin, dataclass_json
 from langchain_core.messages import (
     AIMessage,
     BaseMessage,
@@ -17,6 +18,7 @@ from langchain_core.messages import (
 
 class OpenAIModels(Enum):
     """Names of OpenAI chat models used in this repository."""
+
     GPT_3_5_TURBO = "gpt-3.5-turbo"
     GPT_4_1_MINI = "gpt-4.1-mini"
     GPT_4_O = "gpt-4o"
@@ -28,6 +30,7 @@ class OpenAIModels(Enum):
 
 class LocalModels(Enum):
     """Names of local (Ollama) models used in this repository."""
+
     GEMMA_2_9_B = "gemma2:9b"
     QWEN_2_5_14_B = "qwen2.5:14b"
 
@@ -35,6 +38,7 @@ class LocalModels(Enum):
 @dataclass
 class BaseBlock(DataClassJsonMixin):
     """A single message block in a `Session` (role + textual content)."""
+
     role: str
     content: str
 
@@ -45,12 +49,14 @@ class BaseBlock(DataClassJsonMixin):
 @dataclass
 class CodeBlock(BaseBlock):
     """A message block that contains code (stored in `code`)."""
+
     code: str
 
 
 @dataclass
 class ToolCallBlock(BaseBlock):
     """Represents a tool/function call and its response within a session."""
+
     id: str
     name: str
     arguments: str
@@ -96,25 +102,31 @@ class Session:
         result_messages = []
         for msg in self.messages:
             if isinstance(msg, CodeBlock):
-                result_messages.append({
-                    "type": "code",
-                    "role": msg.role,
-                    "code": msg.code,
-                })
+                result_messages.append(
+                    {
+                        "type": "code",
+                        "role": msg.role,
+                        "code": msg.code,
+                    }
+                )
             elif isinstance(msg, ToolCallBlock):
-                result_messages.append({
-                    "type": "tool_call",
-                    "id": msg.id,
-                    "name": msg.name,
-                    "arguments": msg.arguments,
-                    "response": msg.response,
-                })
+                result_messages.append(
+                    {
+                        "type": "tool_call",
+                        "id": msg.id,
+                        "name": msg.name,
+                        "arguments": msg.arguments,
+                        "response": msg.response,
+                    }
+                )
             else:
-                result_messages.append({
-                    "type": "text",
-                    "role": msg.role,
-                    "content": msg.content,
-                })
+                result_messages.append(
+                    {
+                        "type": "text",
+                        "role": msg.role,
+                        "content": msg.content,
+                    }
+                )
         return {"messages": result_messages}
 
     def to_langchain_messages(self) -> list[BaseMessage]:
@@ -130,27 +142,24 @@ class Session:
                         "args": json.loads(msg.arguments)
                         if isinstance(msg.arguments, str) and msg.arguments != ""
                         else {},
-                        "id": msg.id
+                        "id": msg.id,
                     }
                 except json.decoder.JSONDecodeError as e:
                     logging.error(e)
-                    ai_tool_call = {
-                        "name": msg.name,
-                        "args": {},
-                        "id": msg.id
-                    }
+                    ai_tool_call = {"name": msg.name, "args": {}, "id": msg.id}
 
-                langchain_messages.append(AIMessage(
-                    content="",
-                    tool_calls=[ai_tool_call]
-                ))
+                langchain_messages.append(
+                    AIMessage(content="", tool_calls=[ai_tool_call])
+                )
 
-                langchain_messages.append(ToolMessage(
-                    response=msg.response,
-                    content=msg.content,
-                    tool_call_id=msg.id,
-                    name=msg.name
-                ))
+                langchain_messages.append(
+                    ToolMessage(
+                        response=msg.response,
+                        content=msg.content,
+                        tool_call_id=msg.id,
+                        name=msg.name,
+                    )
+                )
 
             else:
                 if msg.role.lower() in ["user", "human"]:
@@ -187,6 +196,7 @@ class DialogueState:
 
     Contains the dialogue history (`dialogue_sessions`), memory stores, and the final generated response.
     """
+
     from src.algorithms.summarize_algorithms.core.memory_storage.memory_storage import (
         MemoryStorage,
     )
@@ -214,6 +224,7 @@ class DialogueState:
 @dataclass
 class MemoryDialogueState(DialogueState):
     """`DialogueState` that also tracks the `last_session` explicitly (used by memory-based systems)."""
+
     last_session: Session = field(default_factory=lambda: Session([]))
 
 
@@ -221,6 +232,7 @@ class MemoryDialogueState(DialogueState):
 @dataclass
 class RecsumDialogueState(MemoryDialogueState):
     """Dialogue state for `RecsumDialogueSystem` (keeps iterative `text_memory`)."""
+
     text_memory: list[list[str]] = field(default_factory=list)
 
     @property
@@ -232,6 +244,7 @@ class RecsumDialogueState(MemoryDialogueState):
 @dataclass
 class MemoryBankDialogueState(MemoryDialogueState):
     """Dialogue state for `MemoryBankDialogueSystem` (stores session summaries in `text_memory_storage`)."""
+
     from src.algorithms.summarize_algorithms.core.memory_storage.memory_storage import (
         MemoryStorage,
     )
@@ -241,12 +254,14 @@ class MemoryBankDialogueState(MemoryDialogueState):
 
 class WorkflowNode(Enum):
     """Named nodes in the LangGraph dialogue workflow."""
+
     UPDATE_MEMORY = "update_memory"
     GENERATE_RESPONSE = "generate_response"
 
 
 class UpdateState(Enum):
     """Routing values used by `should_continue_memory_update` to control the graph loop."""
+
     CONTINUE_UPDATE = "continue_update"
     FINISH_UPDATE = "finish_update"
 
@@ -255,5 +270,6 @@ class UpdateState(Enum):
 @dataclass
 class ResponseContext:
     """Output of response generation (raw response + the prepared message history sent to the model)."""
+
     response: Any
     prepared_history: list[BaseMessage]

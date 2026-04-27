@@ -3,4 +3,3 @@
 from src.algorithms.summarize_algorithms.recsum.summarizer import RecursiveSummarizer
 
 __all__ = ["RecursiveSummarizer"]
-

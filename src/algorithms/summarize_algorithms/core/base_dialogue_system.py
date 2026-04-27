@@ -69,6 +69,8 @@ class BaseDialogueSystem(ABC, Dialogue):
         is_local: bool = False,
     ) -> None:
         self.system_name = system_name or self.__class__.__name__
+        self.llm: BaseChatModel
+        self.memory_llm: BaseChatModel
 
         self._initialize_model(llm, is_local)
 
@@ -95,7 +97,9 @@ class BaseDialogueSystem(ABC, Dialogue):
         return RESPONSE_GENERATION_PROMPT
 
     @abstractmethod
-    def _get_initial_state(self, sessions: list[Session], last_session: Session, query: str) -> DialogueState:
+    def _get_initial_state(
+        self, sessions: list[Session], last_session: Session, query: str
+    ) -> DialogueState:
         pass
 
     @property
@@ -103,30 +107,27 @@ class BaseDialogueSystem(ABC, Dialogue):
     def _get_dialogue_state_class(self) -> type[DialogueState]:
         pass
 
-    def _initialize_model(self, llm: BaseChatModel | None = None, is_local: bool = False) -> None:
+    def _initialize_model(
+        self, llm: BaseChatModel | None = None, is_local: bool = False
+    ) -> None:
         load_dotenv()
 
         api_key: str | None = os.getenv("OPENAI_API_KEY")
         if api_key is not None:
             self.memory_llm = ChatOpenAI(
-                model=OpenAIModels.GPT_5_MINI.value,
-                api_key=SecretStr(api_key)
+                model=OpenAIModels.GPT_5_MINI.value, api_key=SecretStr(api_key)
             )
         else:
             raise ValueError("OPENAI_API_KEY environment variable is not loaded")
 
         if is_local:
             self.llm = ChatOllama(
-                model=LocalModels.QWEN_2_5_14_B.value,
-                temperature=0,
-                keep_alive="1h"
+                model=LocalModels.QWEN_2_5_14_B.value, temperature=0, keep_alive="1h"
             )
         else:
             self.llm = llm or ChatOpenAI(
-                model=OpenAIModels.GPT_4_O_MINI.value,
-                api_key=SecretStr(api_key)
+                model=OpenAIModels.GPT_4_O_MINI.value, api_key=SecretStr(api_key)
             )
-
 
     def _build_graph(
         self,
@@ -167,11 +168,11 @@ class BaseDialogueSystem(ABC, Dialogue):
         return workflow.compile()
 
     def process_dialogue(
-            self,
-            sessions: list[Session],
-            system_prompt: str,
-            structure: dict[str, Any] | None = None,
-            tools: list[dict[str, Any]] | None = None
+        self,
+        sessions: list[Session],
+        system_prompt: str,
+        structure: dict[str, Any] | None = None,
+        tools: list[dict[str, Any]] | None = None,
     ) -> DialogueState:
         """
         Run the dialogue workflow and return the final `DialogueState`.
@@ -195,7 +196,9 @@ class BaseDialogueSystem(ABC, Dialogue):
             logging.info("Attempting to invoke graph...")
             result = graph.invoke(state)
             if not isinstance(result, dict):
-                raise TypeError(f"Graph invocation returned unexpected type: {type(result)}")
+                raise TypeError(
+                    f"Graph invocation returned unexpected type: {type(result)}"
+                )
             return result
 
         with get_openai_callback() as cb:

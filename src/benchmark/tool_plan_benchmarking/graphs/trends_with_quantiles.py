@@ -35,7 +35,11 @@ class TrendsWithQuantiles(GraphBuilder):
 
         ax.set_xlabel("Число сессий")
 
-        metric_label = str(df["metric"].iloc[0]) if "metric" in df.columns and not df.empty else "Metric"
+        metric_label = (
+            str(df["metric"].iloc[0])
+            if "metric" in df.columns and not df.empty
+            else "Metric"
+        )
         ax.set_ylabel(metric_label)
 
         ax.set_title("Тенденции качества " + title)
@@ -45,7 +49,9 @@ class TrendsWithQuantiles(GraphBuilder):
         plt.close(fig)
 
     @staticmethod
-    def __summarize_for_bands(df: pd.DataFrame, q_low: float = 0.25, q_high: float = 0.75) -> pd.DataFrame:
+    def __summarize_for_bands(
+        df: pd.DataFrame, q_low: float = 0.25, q_high: float = 0.75
+    ) -> pd.DataFrame:
         grouped = df.groupby(["algorithm", "sessions"])["value"]
         summary = grouped.agg(
             mean="mean",

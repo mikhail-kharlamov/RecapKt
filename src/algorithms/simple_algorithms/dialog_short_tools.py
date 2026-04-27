@@ -1,6 +1,5 @@
-from typing import override
-
 from langchain_core.messages import BaseMessage, ToolMessage
+from typing_extensions import override  # noqa: UP035
 
 from src.algorithms.simple_algorithms.dialogue_baseline import DialogueBaseline
 from src.algorithms.summarize_algorithms.core.models import Session

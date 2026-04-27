@@ -60,13 +60,19 @@ class CalculateAgentChatResponseMetrics:
         self.base_recsum = RecsumDialogueSystem(embed_code=False, embed_tool=False)
         self.rag_recsum = RecsumDialogueSystem(embed_code=True, embed_tool=True)
 
-        self.base_memory_bank = MemoryBankDialogueSystem(embed_code=False, embed_tool=False)
-        self.rag_memory_bank = MemoryBankDialogueSystem(embed_code=True, embed_tool=True)
+        self.base_memory_bank = MemoryBankDialogueSystem(
+            embed_code=False, embed_tool=False
+        )
+        self.rag_memory_bank = MemoryBankDialogueSystem(
+            embed_code=True, embed_tool=True
+        )
 
         self.full_baseline = DialogueBaseline("FullBaseline")
         self.last_baseline = DialogueBaseline("LastBaseline")
 
-        self.path_to_save = Path("/Users/mikhailkharlamov/Documents/RecapKt/src/benchmark/agent_chat/results")
+        self.path_to_save = Path(
+            "/Users/mikhailkharlamov/Documents/RecapKt/src/benchmark/agent_chat/results"
+        )
 
     def calculate(self) -> None:
         dialogue = self.dataset.sessions
@@ -78,7 +84,10 @@ class CalculateAgentChatResponseMetrics:
         last_session = sessions[-1]
         query = ""
         for i in range(len(last_session.messages) - 1, -1, -1):
-            if last_session.messages[i].role == "USER" and last_session.messages[i].content != "":
+            if (
+                last_session.messages[i].role == "USER"
+                and last_session.messages[i].content != ""
+            ):
                 self.logger.info(f"User founded {i}")
                 self.logger.info(f"User message: {last_session.messages[i].content}")
                 query = last_session.messages[i].content
@@ -89,9 +98,7 @@ class CalculateAgentChatResponseMetrics:
             dialogue_context += f"Session: {i}" + str(sessions[i]) + "\n\n"
 
         self.logger.info("Started computing base recsum response")
-        base_recsum_response = self.base_recsum.process_dialogue(
-            sessions, query
-        )
+        base_recsum_response = self.base_recsum.process_dialogue(sessions, query)
         self.logger.info("Started computing rag recsum response")
         rag_recsum_response = self.rag_recsum.process_dialogue(sessions, query)
         self.logger.info("Started computing base memory bank response")
@@ -113,11 +120,13 @@ class CalculateAgentChatResponseMetrics:
 
         self.logger.info("Started computing base recsum single response score")
         base_recsum_single_score = self.llm_scorer.evaluate_single(
-            dialogue_context=dialogue_context, assistant_answer=base_recsum_response.response
+            dialogue_context=dialogue_context,
+            assistant_answer=base_recsum_response.response,
         )
         self.logger.info("Started computing rag recsum single response score")
         rag_recsum_single_score = self.llm_scorer.evaluate_single(
-            dialogue_context=dialogue_context, assistant_answer=rag_recsum_response.response
+            dialogue_context=dialogue_context,
+            assistant_answer=rag_recsum_response.response,
         )
         self.logger.info("Started computing base memory bank single response score")
         base_memory_bank_single_score = self.llm_scorer.evaluate_single(
@@ -126,7 +135,8 @@ class CalculateAgentChatResponseMetrics:
         )
         self.logger.info("Started computing rag memory bank single response score")
         rag_memory_bank_single_score = self.llm_scorer.evaluate_single(
-            dialogue_context=dialogue_context, assistant_answer=rag_memory_bank_response.response
+            dialogue_context=dialogue_context,
+            assistant_answer=rag_memory_bank_response.response,
         )
         self.logger.info("Started computing full session single response score")
         full_sessions_baseline_single_score = self.llm_scorer.evaluate_single(
@@ -172,7 +182,9 @@ class CalculateAgentChatResponseMetrics:
         self.logger.info("Started evaluate_pairwise")
         for var1, var2 in pairs:
             pairwise_score = self.llm_scorer.evaluate_pairwise(
-                dialogue_context=dialogue_context, first_answer=var1.response, second_answer=var2.response
+                dialogue_context=dialogue_context,
+                first_answer=var1.response,
+                second_answer=var2.response,
             )
 
             mapping = {
@@ -291,9 +303,7 @@ class CalculateAgentChatResponseMetrics:
             ct = algo.completion_tokens  # type: ignore[attr-defined]
             cost = algo.total_cost  # type: ignore[attr-defined]
 
-            print(
-                f"{name:<25} | {pt:<15} | {ct:<18} | {cost:<12.5f}"
-            )
+            print(f"{name:<25} | {pt:<15} | {ct:<18} | {cost:<12.5f}")
 
         print("\n===Processed Messages ===")
         print(f"Total messages processed: {self.message_count}")

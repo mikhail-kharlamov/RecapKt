@@ -17,7 +17,9 @@ from src.benchmark.tool_plan_benchmarking.statistics.normalizer import MetricNor
 class MetricStatisticsAggregator:
     """Aggregates metric observations into `StatisticsDto` (mean/variance + per-run values)."""
 
-    def __init__(self, *, normalize: bool = False, logger: logging.Logger | None = None) -> None:
+    def __init__(
+        self, *, normalize: bool = False, logger: logging.Logger | None = None
+    ) -> None:
         self._normalize = normalize
         self._logger = logger or logging.getLogger()
 
@@ -27,13 +29,17 @@ class MetricStatisticsAggregator:
             values_by_key[observation.key].append(observation.value)
 
         if self._normalize:
-            values_by_key = MetricNormalizer.normalize_by_metric_type(dict(values_by_key))
+            values_by_key = MetricNormalizer.normalize_by_metric_type(
+                dict(values_by_key)
+            )
 
         algorithm_stats: list[AlgorithmStatistics] = []
         self._logger.info("Getting statistics...")
 
         for key, values in values_by_key.items():
-            self._logger.info("Getting %s %s statistics", key.algorithm, key.metric.value)
+            self._logger.info(
+                "Getting %s %s statistics", key.algorithm, key.metric.value
+            )
 
             n = len(values)
             if n == 0:

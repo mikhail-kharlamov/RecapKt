@@ -25,7 +25,9 @@ def _load_stdlib_statistics() -> ModuleType:
 
     spec = importlib.util.spec_from_file_location("_stdlib_statistics", statistics_path)
     if spec is None or spec.loader is None:
-        raise ImportError(f"Failed to load stdlib statistics module from {statistics_path}")
+        raise ImportError(
+            f"Failed to load stdlib statistics module from {statistics_path}"
+        )
 
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)

@@ -36,7 +36,7 @@ class SemanticSimilarity:
             return ""
         if isinstance(value, str):
             return value
-        if isinstance(value, (int, float, bool)):
+        if isinstance(value, int | float | bool):
             return str(value)
         try:
             return json.dumps(value, ensure_ascii=False, sort_keys=True)
@@ -105,8 +105,10 @@ class SemanticSimilarity:
 
         sentence_a = sentence_a.strip()
         sentence_b = sentence_b.strip()
-        if not sentence_a or not sentence_b:
-            raise ValueError("Sentences must be non-empty.")
+        if not sentence_a and not sentence_b:
+            return 1.0
+        elif not sentence_a or not sentence_b:
+            return 0.0
 
         vecs = self.embeddings.embed_documents([sentence_a, sentence_b])
         vec_a = np.asarray(vecs[0], dtype=float).reshape(1, -1)
@@ -119,7 +121,9 @@ class SemanticSimilarity:
         Values are coerced to text via `_to_text()` before embedding.
         """
 
-        common_keys = set(json_a.keys()).intersection(set(json_b.keys())) #TODO only common keys??
+        common_keys = set(json_a.keys()).intersection(
+            set(json_b.keys())
+        )  # TODO only common keys??
         if not common_keys:
             return 0.0
 
@@ -129,8 +133,7 @@ class SemanticSimilarity:
                 self._to_text(json_a[key]),
                 self._to_text(json_b[key]),
             )
-            if similarity >= 0.7:
-                print("yes")
+            print(similarity)
             similarities.append(similarity)
 
         return float(np.mean(similarities))

@@ -30,13 +30,13 @@ class SystemPromptBuilder:
         )
 
     def build(
-            self,
-            *,
-            schema: dict[str, Any] | None,
-            tools: list[dict[str, Any]] | None,
-            memory: MemorySections,
-            memory_mode: str,
-            examples: str = "",
+        self,
+        *,
+        schema: dict[str, Any] | None,
+        tools: list[dict[str, Any]] | None,
+        memory: MemorySections,
+        memory_mode: str,
+        examples: str = "",
     ) -> str:
         """
         Build the unified system prompt in the required order.
@@ -56,22 +56,30 @@ class SystemPromptBuilder:
         """
         intro = self._env.get_template("introduction.j2").render().strip()
 
-        memory_text = self._env.get_template("memory_injection.j2").render(
-            recap=memory.recap,
-            memory_bank=memory.memory_bank,
-            code_knowledge=memory.code_knowledge,
-            tool_memory=memory.tool_memory,
-        ).strip()
+        memory_text = (
+            self._env.get_template("memory_injection.j2")
+            .render(
+                recap=memory.recap,
+                memory_bank=memory.memory_bank,
+                code_knowledge=memory.code_knowledge,
+                tool_memory=memory.tool_memory,
+            )
+            .strip()
+        )
 
         schema_json = json.dumps(schema or {}, ensure_ascii=False, indent=4)
         tools_json = json.dumps(tools or {}, ensure_ascii=False, indent=4)
 
-        schema_and_tool = self._env.get_template("schema_and_tool.j2").render(
-            tools=tools_json,
-            schema_json=schema_json,
-            memory_mode=memory_mode,
-            examples=examples,
-        ).strip()
+        schema_and_tool = (
+            self._env.get_template("schema_and_tool.j2")
+            .render(
+                tools=tools_json,
+                schema_json=schema_json,
+                memory_mode=memory_mode,
+                examples=examples,
+            )
+            .strip()
+        )
 
         bridge = self._env.get_template("bridge_to_conversation.j2").render().strip()
 

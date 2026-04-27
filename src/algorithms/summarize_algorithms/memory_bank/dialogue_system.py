@@ -49,7 +49,7 @@ class MemoryBankDialogueSystem(BaseDialogueSystem):
             text_memory_storage=MemoryStorage(
                 embeddings=self.embed_model, max_session_id=self.max_session_id
             ),
-            prepared_messages=[]
+            prepared_messages=[],
         )
 
     @property

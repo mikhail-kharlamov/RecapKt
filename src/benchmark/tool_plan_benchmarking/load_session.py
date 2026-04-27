@@ -50,26 +50,26 @@ class Loader:
 
             if block_type in ("user", "system", "USER", "SYSTEM"):
                 block = BaseBlock(
-                    role=block_type.upper(),
-                    content=dict_block["content"]
+                    role=block_type.upper(), content=dict_block["content"]
                 )
                 result.append(block)
                 i += 1
 
             elif block_type in ("assistant", "ASSISTANT"):
                 block = BaseBlock(
-                    role=block_type.upper(),
-                    content=dict_block["content"]
+                    role=block_type.upper(), content=dict_block["content"]
                 )
                 result.append(block)
 
-                tool_calls = dict_block.get("toolCalls") or dict_block.get("tool_calls", [])
+                tool_calls = dict_block.get("toolCalls") or dict_block.get(
+                    "tool_calls", []
+                )
                 if tool_calls:
                     i += 1
                     blocks = Loader.__process_tool_calls_data_type_2(
                         tool_calls,
                         data[i].get("toolResponses")
-                        or data[i].get("tool_responses", [])
+                        or data[i].get("tool_responses", []),
                     )
                     result.extend(blocks)
 
@@ -80,8 +80,7 @@ class Loader:
 
             else:
                 block = BaseBlock(
-                    role=block_type.upper(),
-                    content=str(dict_block.get("content", ""))
+                    role=block_type.upper(), content=str(dict_block.get("content", ""))
                 )
                 result.append(block)
                 i += 1
@@ -166,8 +165,8 @@ class Loader:
 
     @staticmethod
     def __process_tool_calls_data_type_2(
-            tool_calls: list[dict[str, Any]],
-            tool_responses: list[dict[str, dict[str, Any]]]
+        tool_calls: list[dict[str, Any]],
+        tool_responses: list[dict[str, dict[str, Any]]],
     ) -> list[ToolCallBlock]:
         blocks: list[ToolCallBlock] = []
         for call in tool_calls:
@@ -194,7 +193,7 @@ class Loader:
                         id=call["id"],
                         name=call["name"],
                         arguments=call["arguments"],
-                        response=response["result"]
+                        response=response["result"],
                     )
                     blocks.append(block)
         return blocks

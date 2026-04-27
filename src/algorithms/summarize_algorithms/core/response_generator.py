@@ -7,7 +7,6 @@ from langchain_core.messages import (
     BaseMessage,
     HumanMessage,
     SystemMessage,
-    ToolMessage,
     trim_messages,
 )
 from langchain_core.output_parsers import StrOutputParser
@@ -104,39 +103,24 @@ class ResponseGenerator:
 
         return history
 
-    def _crop(self, messages: list[BaseMessage], max_tokens: int = 80000) -> list[BaseMessage]:
+    def _crop(self, messages: list[BaseMessage], max_tokens: int = 70000) -> list[BaseMessage]:
         """Trim a list of messages to fit into a token budget.
 
         Mirrors `DialogueBaseline._crop()` behavior:
         - preserves an initial `SystemMessage` (if present)
         - ensures the first message after trimming is not a `ToolMessage`
         """
-        system_msg: SystemMessage | None = None
-        if messages and isinstance(messages[0], SystemMessage):
-            system_msg = messages[0]
-            messages_to_trim = messages[1:]
-        else:
-            messages_to_trim = messages
-
-        total_tokens_before_crop = self._llm.get_num_tokens_from_messages(messages_to_trim)
+        total_tokens_before_crop = self._llm.get_num_tokens_from_messages(messages)
         logging.info(f"Total tokens before crop: {total_tokens_before_crop}")
 
         trimmed_messages = trim_messages(
-            messages_to_trim,
+            messages,
             token_counter=self._llm,
             max_tokens=max_tokens,
             strategy="last",
             include_system=True,
             allow_partial=False,
         )
-
-        while trimmed_messages and isinstance(trimmed_messages[0], ToolMessage):
-            trimmed_messages.pop(0)
-
-        if system_msg is not None:
-            total_tokens_after_crop = self._llm.get_num_tokens_from_messages(trimmed_messages)
-            logging.info(f"Total tokens after crop (without system message): {total_tokens_after_crop}")
-            return [system_msg, *trimmed_messages]
 
         return trimmed_messages
 

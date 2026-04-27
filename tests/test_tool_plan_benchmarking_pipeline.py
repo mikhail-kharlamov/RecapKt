@@ -19,7 +19,14 @@ class FakeAlgo:
         state = MagicMock()
         state.response = {
             "plan_steps": [
-                {"kind": "tool_call", "name": "read_file", "args": {}, "id": "s1", "description": "", "depends_on": []}
+                {
+                    "kind": "tool_call",
+                    "name": "read_file",
+                    "args": {},
+                    "id": "s1",
+                    "description": "",
+                    "depends_on": [],
+                }
             ]
         }
         state.prepared_messages = []

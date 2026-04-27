@@ -18,11 +18,11 @@ class BaseEvaluator(ABC):
 
     @abstractmethod
     def evaluate(
-            self,
-            sessions: list[Session],
-            query: str,
-            state: DialogueState,
-            reference: list[BaseBlock] | None = None
+        self,
+        sessions: list[Session],
+        query: str,
+        state: DialogueState,
+        reference: list[BaseBlock] | None = None,
     ) -> MetricState:
         """
         Returns eval score of llm's answer with for query.

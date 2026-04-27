@@ -73,11 +73,11 @@ def test_generate_response_exception(response_generator, empty_session):
     response_generator._chain = mock_chain
 
     with pytest.raises(ConnectionError) as exc_info:
-            response_generator.generate_response(
-                last_session=empty_session,
-                user_query="q",
-                memory=MemorySections(),
-            )
+        response_generator.generate_response(
+            last_session=empty_session,
+            user_query="q",
+            memory=MemorySections(),
+        )
 
     assert "API request failed: Network error" in str(exc_info.value)
     assert isinstance(exc_info.value.__cause__, Exception)

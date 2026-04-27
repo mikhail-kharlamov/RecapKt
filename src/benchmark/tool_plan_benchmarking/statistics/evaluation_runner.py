@@ -16,7 +16,7 @@ from src.benchmark.tool_plan_benchmarking.evaluators.base_evaluator import BaseE
 class EvaluationLaunchRunner:
     """Runs repeated evaluation launches and returns produced log records."""
 
-    _RUN_ID = "exp_3_02_2026_8_43_pm"
+    _RUN_ID = "exp_16_02_2026_3_03_am"
 
     def __init__(self, logger: logging.Logger | None = None) -> None:
         self._logger = logger or logging.getLogger()
@@ -44,6 +44,7 @@ class EvaluationLaunchRunner:
                 gold_session=gold_session,
                 shuffle=shuffle,
                 seed=self._make_seed(launch_count, launch_index),
+                # seed=self._make_seed(5, 4),
             )
 
             self._logger.info("Starting evaluation launch %s", launch_index)
@@ -81,5 +82,7 @@ class EvaluationLaunchRunner:
 
     @classmethod
     def _make_seed(cls, total_launches: int, launch_index: int) -> int:
-        digest = hashlib.sha256(f"{cls._RUN_ID}:{total_launches}:{launch_index}".encode()).hexdigest()
+        digest = hashlib.sha256(
+            f"{cls._RUN_ID}:{total_launches}:{launch_index}".encode()
+        ).hexdigest()
         return int(digest[:16], 16)

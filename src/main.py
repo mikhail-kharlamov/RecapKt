@@ -75,7 +75,7 @@ def main() -> None:
                     arguments='{"code": "def sort_list..."}',
                     response="The code is correct, but the sorting is inefficient for large lists.",
                     content="Code check completed. The code is correct, but the sorting is inefficient for"
-                            " large lists.",
+                    " large lists.",
                 ),
             ]
         ),

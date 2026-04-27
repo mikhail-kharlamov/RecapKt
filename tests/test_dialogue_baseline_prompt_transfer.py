@@ -14,7 +14,10 @@ from src.algorithms.summarize_algorithms.core.models import BaseBlock, Session
 from src.algorithms.summarize_algorithms.core.response_generator import (
     ResponseGenerator,
 )
-from src.benchmark.tool_plan_benchmarking.tools_and_schemas.parsed_jsons import PLAN_SCHEMA, TOOLS
+from src.benchmark.tool_plan_benchmarking.tools_and_schemas.parsed_jsons import (
+    PLAN_SCHEMA,
+    TOOLS,
+)
 from src.utils.system_prompt_builder import MemorySections, SystemPromptBuilder
 
 
@@ -24,9 +27,10 @@ class InvocationCapture:
 
 
 class CapturingChain:
-    def __init__(self, capture: InvocationCapture, response: Any = "ok") -> None:
+    def __init__(self, capture: InvocationCapture, response: Any = None) -> None:
         self._capture = capture
-        self._response = response
+        # DialogueBaseline uses structured output in this test; return a dict-shaped response by default.
+        self._response = {} if response is None else response
 
     def invoke(self, messages: list[BaseMessage]) -> Any:
         self._capture.messages = messages
@@ -52,7 +56,9 @@ def fake_llm() -> MagicMock:
     return llm
 
 
-def test_dialogue_baseline_transfers_full_prompt_as_message_list(monkeypatch: pytest.MonkeyPatch, fake_llm: MagicMock):
+def test_dialogue_baseline_transfers_full_prompt_as_message_list(
+    monkeypatch: pytest.MonkeyPatch, fake_llm: MagicMock
+):
     """Baseline must pass a list[BaseMessage] (not dict vars) and use the unified system templates."""
 
     # Patch LangChain callback context used in DialogueBaseline
@@ -83,7 +89,9 @@ def test_dialogue_baseline_transfers_full_prompt_as_message_list(monkeypatch: py
     assert isinstance(capture.messages, list)
     assert isinstance(capture.messages[0], SystemMessage)
     assert isinstance(capture.messages[-1], HumanMessage)
-    assert capture.messages[-1].content == "Hi" or capture.messages[-1].content != ""  # sanity
+    assert (
+        capture.messages[-1].content == "Hi" or capture.messages[-1].content != ""
+    )  # sanity
 
     expected_system = baseline._prompt_builder.build(
         schema=PLAN_SCHEMA,

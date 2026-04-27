@@ -34,7 +34,9 @@ class FakeEmbeddings(Embeddings):
         ]
 
 
-def test_memory_storage_add_and_find_similar_offline(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_memory_storage_add_and_find_similar_offline(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     # MemoryStorage requires OPENAI_API_KEY even when custom embeddings are provided.
     monkeypatch.setenv("OPENAI_API_KEY", "offline")
 

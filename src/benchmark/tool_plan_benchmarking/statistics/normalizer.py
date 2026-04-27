@@ -12,7 +12,9 @@ class MetricNormalizer:
     """
 
     @staticmethod
-    def normalize_by_metric_type(values_by_key: dict[MetricKey, list[float]]) -> dict[MetricKey, list[float]]:
+    def normalize_by_metric_type(
+        values_by_key: dict[MetricKey, list[float]],
+    ) -> dict[MetricKey, list[float]]:
         values_by_metric: dict[MetricType, list[float]] = defaultdict(list)
         for key, values in values_by_key.items():
             values_by_metric[key.metric].extend(values)
@@ -32,6 +34,8 @@ class MetricNormalizer:
             if global_max == global_min:
                 normalized[key] = values
                 continue
-            normalized[key] = [(v - global_min) / (global_max - global_min) for v in values]
+            normalized[key] = [
+                (v - global_min) / (global_max - global_min) for v in values
+            ]
 
         return normalized

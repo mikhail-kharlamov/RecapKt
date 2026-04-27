@@ -9,10 +9,16 @@ from src.benchmark.logger.base_logger import BaseLogger
 from src.benchmark.models.dtos import BaseRecord
 from src.benchmark.tool_plan_benchmarking.calculator import Calculator
 from src.benchmark.tool_plan_benchmarking.evaluators.base_evaluator import BaseEvaluator
-from src.benchmark.tool_plan_benchmarking.statistics.aggregator import MetricStatisticsAggregator
+from src.benchmark.tool_plan_benchmarking.statistics.aggregator import (
+    MetricStatisticsAggregator,
+)
 from src.benchmark.tool_plan_benchmarking.statistics.dtos import StatisticsDto
-from src.benchmark.tool_plan_benchmarking.statistics.evaluation_runner import EvaluationLaunchRunner
-from src.benchmark.tool_plan_benchmarking.statistics.observations_collector import MetricObservationsCollector
+from src.benchmark.tool_plan_benchmarking.statistics.evaluation_runner import (
+    EvaluationLaunchRunner,
+)
+from src.benchmark.tool_plan_benchmarking.statistics.observations_collector import (
+    MetricObservationsCollector,
+)
 from src.benchmark.tool_plan_benchmarking.statistics.printer import StatisticsPrinter
 
 
@@ -52,7 +58,9 @@ class Statistics:
         )
 
         observations = MetricObservationsCollector.collect(records)
-        return MetricStatisticsAggregator(normalize=False, logger=system_logger).aggregate(observations)
+        return MetricStatisticsAggregator(
+            normalize=False, logger=system_logger
+        ).aggregate(observations)
 
     @staticmethod
     def calculate_by_logs(
@@ -65,7 +73,9 @@ class Statistics:
         system_logger = system_logger or logging.getLogger()
 
         observations = MetricObservationsCollector.collect(metrics)
-        return MetricStatisticsAggregator(normalize=normalize, logger=system_logger).aggregate(observations)
+        return MetricStatisticsAggregator(
+            normalize=normalize, logger=system_logger
+        ).aggregate(observations)
 
     @staticmethod
     def calculate_with_new_metrics_by_logs(
@@ -76,6 +86,7 @@ class Statistics:
         logs_path: Path | str,
         subdirectory: Path,
         iteration: int | None = None,
+        recalculate_old_metrics: bool = True,
         system_logger: logging.Logger | None = None,
         normalize: bool = False,
     ) -> StatisticsDto:
@@ -97,10 +108,13 @@ class Statistics:
             logs_path=logs_path,
             subdirectory=subdirectory,
             iteration=iteration,
+            recalculate_old_metrics=recalculate_old_metrics,
         )
 
         observations = MetricObservationsCollector.collect(records)
-        return MetricStatisticsAggregator(normalize=normalize, logger=system_logger).aggregate(observations)
+        return MetricStatisticsAggregator(
+            normalize=normalize, logger=system_logger
+        ).aggregate(observations)
 
     @staticmethod
     def print_statistics(stats: StatisticsDto) -> None:

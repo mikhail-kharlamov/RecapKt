@@ -15,23 +15,29 @@ class DadaJsonFormatter(logging.Formatter):
             "level": record.levelname,
             "logger": record.name,
             "message": record.getMessage(),
-            "timestamp": str(int(record.created))
+            "timestamp": str(int(record.created)),
         }
 
         if record.exc_info:
-            log_record["exception"] = "".join(traceback.format_exception(*record.exc_info))
+            log_record["exception"] = "".join(
+                traceback.format_exception(*record.exc_info)
+            )
 
         return json.dumps(log_record)
 
 
-def configure_logs(logdir: str | None = None, loglevel: int = logging.INFO, log_file: str | None = None) -> None:
+def configure_logs(
+    logdir: str | None = None, loglevel: int = logging.INFO, log_file: str | None = None
+) -> None:
     logger = logging.getLogger()
     logger.setLevel(loglevel)
 
     if logdir and log_file:
         log_file = os.path.join(logdir, log_file)
         os.makedirs(logdir, exist_ok=True)
-        file_handler = RotatingFileHandler(log_file, maxBytes=10 * 1024 * 1024, backupCount=5)
+        file_handler = RotatingFileHandler(
+            log_file, maxBytes=10 * 1024 * 1024, backupCount=5
+        )
         file_handler.setFormatter(DadaJsonFormatter())
         file_handler.setLevel(loglevel)
         logger.addHandler(file_handler)
@@ -47,7 +53,7 @@ def configure_logs(logdir: str | None = None, loglevel: int = logging.INFO, log_
             "WARNING": "yellow",
             "ERROR": "red",
             "CRITICAL": "red,bg_white",
-        }
+        },
     )
     console_handler.setFormatter(console_formatter)
     console_handler.setLevel(loglevel)

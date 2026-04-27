@@ -9,7 +9,9 @@ from pydantic import BaseModel
 
 from src.benchmark.models.dtos import MetricState
 from src.benchmark.models.enums import MetricType
-from src.benchmark.tool_plan_benchmarking.evaluators.llm_as_a_judge_base_evaluator import LLMAsAJudgeBaseEvaluator
+from src.benchmark.tool_plan_benchmarking.evaluators.llm_as_a_judge_base_evaluator import (
+    LLMAsAJudgeBaseEvaluator,
+)
 
 
 class DummyResult(BaseModel):

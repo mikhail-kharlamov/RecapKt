@@ -15,9 +15,9 @@ class BoxPlot(GraphBuilder):
 
     @staticmethod
     def build(
-            statistics: StatisticsDto,
-            path_to_save: str,
-            title: str = "",
+        statistics: StatisticsDto,
+        path_to_save: str,
+        title: str = "",
     ) -> None:
         df = BoxPlot._runs_to_dataframe(statistics)
 
@@ -51,4 +51,3 @@ class BoxPlot(GraphBuilder):
         plt.tight_layout()
         BoxPlot._save_figure(path_to_save)
         plt.close()
-

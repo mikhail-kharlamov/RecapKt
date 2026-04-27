@@ -14,7 +14,9 @@ from src.benchmark.tool_plan_benchmarking.statistics.observations_collector impo
 from src.benchmark.tool_plan_benchmarking.statistics.statistics import Statistics
 
 
-def _make_record(system: str, sessions_count: int, f1: float, strict: float) -> BaseRecord:
+def _make_record(
+    system: str, sessions_count: int, f1: float, strict: float
+) -> BaseRecord:
     sessions = [{"messages": []} for _ in range(sessions_count)]
     return BaseRecord(
         timestamp=datetime.now().isoformat(),
@@ -26,7 +28,9 @@ def _make_record(system: str, sessions_count: int, f1: float, strict: float) -> 
         prepared_messages=[],
         metric=[
             MetricState(metric_name=MetricType.F1_TOOL, metric_value=Decimal(str(f1))),
-            MetricState(metric_name=MetricType.F1_TOOL_STRICT, metric_value=Decimal(str(strict))),
+            MetricState(
+                metric_name=MetricType.F1_TOOL_STRICT, metric_value=Decimal(str(strict))
+            ),
         ],
     )
 

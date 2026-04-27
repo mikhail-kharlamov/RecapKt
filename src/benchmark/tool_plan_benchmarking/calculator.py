@@ -1,4 +1,5 @@
 import logging
+
 from pathlib import Path
 from typing import Any
 
@@ -13,7 +14,9 @@ from src.algorithms.summarize_algorithms.core.models import (
 from src.benchmark.logger.base_logger import BaseLogger
 from src.benchmark.models.dtos import BaseRecord, MemoryRecord, MetricState
 from src.benchmark.tool_plan_benchmarking.evaluators.base_evaluator import BaseEvaluator
-from src.benchmark.tool_plan_benchmarking.tools_and_schemas.parsed_jsons import PLAN_SCHEMA
+from src.benchmark.tool_plan_benchmarking.tools_and_schemas.parsed_jsons import (
+    PLAN_SCHEMA,
+)
 
 
 class Calculator:
@@ -23,15 +26,15 @@ class Calculator:
 
     @staticmethod
     def evaluate(
-            algorithms: list[Dialogue],
-            evaluator_functions: list[BaseEvaluator],
-            sessions: list[Session],
-            prompt: str,
-            reference: list[BaseBlock],
-            logger: BaseLogger,
-            subdirectory: Path,
-            tools: list[dict[str, Any]] | None = None,
-            iteration: int | None = None,
+        algorithms: list[Dialogue],
+        evaluator_functions: list[BaseEvaluator],
+        sessions: list[Session],
+        prompt: str,
+        reference: list[BaseBlock],
+        logger: BaseLogger,
+        subdirectory: Path,
+        tools: list[dict[str, Any]] | None = None,
+        iteration: int | None = None,
     ) -> list[BaseRecord]:
         """Run and evaluate an algorithm, then save results via `logger`."""
         system_logger = logging.getLogger()
@@ -39,7 +42,9 @@ class Calculator:
 
         for algorithm in algorithms:
             system_logger.info(f"Calculating {algorithm.system_name}")
-            state: DialogueState = algorithm.process_dialogue(sessions, prompt, PLAN_SCHEMA, tools)
+            state: DialogueState = algorithm.process_dialogue(
+                sessions, prompt, PLAN_SCHEMA, tools
+            )
 
             algorithm_metrics: list[MetricState] = Calculator.__evaluate_result(
                 evaluator_functions,
@@ -65,19 +70,15 @@ class Calculator:
 
     @staticmethod
     def evaluate_by_logs(
-            algorithms: list[Dialogue],
-            evaluator_functions: list[BaseEvaluator],
-            reference: list[BaseBlock],
-            logger: BaseLogger,
-            logs_path: Path | str,
-            subdirectory: Path,
-            iteration: int | None = None,
+        algorithms: list[Dialogue],
+        evaluator_functions: list[BaseEvaluator],
+        reference: list[BaseBlock],
+        logger: BaseLogger,
+        logs_path: Path | str,
+        subdirectory: Path,
+        iteration: int | None = None,
+        recalculate_old_metrics: bool = True,
     ) -> list[BaseRecord]:
-        """Append newly added metrics to existing log JSONs.
-
-        Reads logs under `<logs_path>/<algorithm.system_name>/<subdirectory>`.
-        Updates files in-place by merging new metric values into the existing `metric` list.
-        """
         system_logger = logging.getLogger()
         updated_records: list[BaseRecord] = []
 
@@ -109,31 +110,30 @@ class Calculator:
                     reference=reference,
                 )
 
-                # Keep `metric` as `MetricState` objects (do not mix in dicts).
                 if log.metric is None:
                     log.metric = []
 
-                existing_metric_names = set()
-                for m in log.metric:
-                    # Backward compatibility: tolerate dicts if they ever appear.
-                    if isinstance(m, dict):
-                        name = m.get("metric_name")
-                        if name is not None:
-                            existing_metric_names.add(name)
-                    else:
-                        existing_metric_names.add(m.metric_name)
+                existing_metric_names = {m.metric_name.value for m in log.metric}
 
-                for metric in algorithm_metrics:
-                    if metric.metric_name in existing_metric_names:
-                        log.metric.pop(log.metric.index(metric))
-                    log.metric.append(metric)
-                    existing_metric_names.add(metric.metric_name)
+                for metric_state in algorithm_metrics:
+                    metric_key = metric_state.metric_name.value
+
+                    if (
+                        not recalculate_old_metrics
+                    ) and metric_key in existing_metric_names:
+                        continue
+
+                    log.metric = [
+                        m for m in log.metric if m.metric_name.value != metric_key
+                    ]
+                    log.metric.append(metric_state)
+                    existing_metric_names.add(metric_key)
 
                 logger.save_log_dict(
                     Path(logs_path) / Path(algorithm.system_name) / subdirectory,
                     iteration or 1,
                     log.to_dict(),
-                    algorithm.system_name
+                    algorithm.system_name,
                 )
 
                 updated_records.append(log)
@@ -169,10 +169,17 @@ class Calculator:
 
             msg_type = msg.get("type")
             if msg_type == "text":
-                messages.append(BaseBlock(role=str(msg.get("role", "")), content=str(msg.get("content", ""))))
+                messages.append(
+                    BaseBlock(
+                        role=str(msg.get("role", "")),
+                        content=str(msg.get("content", "")),
+                    )
+                )
             elif msg_type == "code":
                 code = str(msg.get("code", ""))
-                messages.append(CodeBlock(role=str(msg.get("role", "")), content=code, code=code))
+                messages.append(
+                    CodeBlock(role=str(msg.get("role", "")), content=code, code=code)
+                )
             elif msg_type == "tool_call":
                 messages.append(
                     ToolCallBlock(
@@ -185,17 +192,22 @@ class Calculator:
                     )
                 )
             else:
-                messages.append(BaseBlock(role=str(msg.get("role", "")), content=str(msg.get("content", ""))))
+                messages.append(
+                    BaseBlock(
+                        role=str(msg.get("role", "")),
+                        content=str(msg.get("content", "")),
+                    )
+                )
 
         return Session(messages)
 
     @staticmethod
     def __evaluate_result(
-            evaluator_functions: list[BaseEvaluator],
-            sessions: list[Session],
-            prompt: str,
-            state: DialogueState,
-            reference: list[BaseBlock],
+        evaluator_functions: list[BaseEvaluator],
+        sessions: list[Session],
+        prompt: str,
+        state: DialogueState,
+        reference: list[BaseBlock],
     ) -> list[MetricState]:
         algorithm_metrics: list[MetricState] = []
         for evaluator_function in evaluator_functions:

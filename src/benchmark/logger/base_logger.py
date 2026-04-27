@@ -1,5 +1,6 @@
 import logging
 import os
+
 from abc import ABC, abstractmethod
 from pathlib import Path
 from typing import Any
@@ -22,33 +23,31 @@ class BaseLogger(ABC):
 
     @abstractmethod
     def log_iteration(
-            self,
-            system_name: str,
-            query: str,
-            iteration: int,
-            sessions: list[Session],
-            state: DialogueState,
-            subdirectory: Path,
-            metrics: list[MetricState] | None = None,
-            save: bool = True,
-    ) -> BaseRecord:
-        ...
+        self,
+        system_name: str,
+        query: str,
+        iteration: int,
+        sessions: list[Session],
+        state: DialogueState,
+        subdirectory: Path,
+        metrics: list[MetricState] | None = None,
+        save: bool = True,
+    ) -> BaseRecord: ...
 
     @abstractmethod
     def fetch_logs(
-            self,
-            system_names: list[str],
-            subdirectory: Path,
-    ) -> list[BaseRecord]:
-        ...
+        self,
+        system_names: list[str],
+        subdirectory: Path,
+    ) -> list[BaseRecord]: ...
 
     def _prepare_and_save_log(
-            self,
-            record: dict[str, Any],
-            subdirectory: Path,
-            system_name: str,
-            iteration: int,
-            metrics: list[MetricState] | None = None
+        self,
+        record: dict[str, Any],
+        subdirectory: Path,
+        system_name: str,
+        iteration: int,
+        metrics: list[MetricState] | None = None,
     ) -> None:
         if metrics is not None:
             record["metric"] = BaseLogger.metrics_to_dicts(metrics)
@@ -62,11 +61,7 @@ class BaseLogger(ABC):
         self.save_log_dict(directory, iteration, record, system_name)
 
     def save_log_dict(
-            self,
-            directory: Path,
-            iteration: int,
-            record: dict[str, Any],
-            system_name: str
+        self, directory: Path, iteration: int, record: dict[str, Any], system_name: str
     ) -> None:
         # Use overwrite mode: in "evaluate-by-logs" we update the same file in-place.
         # (Previous append mode could create multiple JSON objects in one file.)
@@ -78,14 +73,15 @@ class BaseLogger(ABC):
     @staticmethod
     def metrics_to_dicts(metrics: list[MetricState]) -> list[dict[str, Any]]:
         return [
-            {"metric_name": metric.metric_name.value, "metric_value": metric.metric_value}
+            {
+                "metric_name": metric.metric_name.value,
+                "metric_value": metric.metric_value,
+            }
             for metric in metrics
         ]
 
     @staticmethod
-    def _serialize_memories(
-            state: DialogueState
-    ) -> dict[str, Any]:
+    def _serialize_memories(state: DialogueState) -> dict[str, Any]:
         result: dict[str, Any] = {}
 
         if state.code_memory_storage is not None:

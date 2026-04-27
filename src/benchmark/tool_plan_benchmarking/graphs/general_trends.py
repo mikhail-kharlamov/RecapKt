@@ -17,9 +17,9 @@ class GeneralTrends(GraphBuilder):
 
     @staticmethod
     def build(
-            statistics: StatisticsDto,
-            path_to_save: str,
-            title: str = "",
+        statistics: StatisticsDto,
+        path_to_save: str,
+        title: str = "",
     ) -> None:
         sns.set_theme(style="whitegrid")
 

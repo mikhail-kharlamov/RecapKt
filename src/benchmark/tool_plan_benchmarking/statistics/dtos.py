@@ -11,6 +11,7 @@ class MetricKey:
     - metric type
     - number of sessions used in the run
     """
+
     algorithm: str
     metric: MetricType
     session_count: int
@@ -19,6 +20,7 @@ class MetricKey:
 @dataclass(frozen=True, slots=True)
 class MetricObservation:
     """A single observed metric value for a given `MetricKey`."""
+
     key: MetricKey
     value: float
 

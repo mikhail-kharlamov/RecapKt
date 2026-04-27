@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import argparse
+
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -74,7 +75,9 @@ def delete_files_by_pattern(
 
 
 def _build_arg_parser() -> argparse.ArgumentParser:
-    parser = argparse.ArgumentParser(description="Delete benchmark artifact files by extension and filename substring")
+    parser = argparse.ArgumentParser(
+        description="Delete benchmark artifact files by extension and filename substring"
+    )
     parser.add_argument(
         "--root",
         required=True,
